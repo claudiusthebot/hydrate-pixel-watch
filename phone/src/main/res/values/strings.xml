@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Hydrate</string>
+    <string name="today">Today</string>
+    <string name="history">History</string>
+    <string name="settings">Settings</string>
+    <string name="goal">Daily goal</string>
+    <string name="hc_connect">Connect Health Connect</string>
+    <string name="hc_needs_install">Health Connect isn\'t installed. Open Play Store to get it.</string>
+    <string name="quick_add">Quick add</string>
+    <string name="custom">Custom…</string>
+    <string name="no_entries">Nothing logged yet today — tap a quick-add or + to begin.</string>
+</resources>

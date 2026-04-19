@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wearable>
+    <capabilities>
+        <capability name="water_tracker_wear" />
+    </capabilities>
+</wearable>
