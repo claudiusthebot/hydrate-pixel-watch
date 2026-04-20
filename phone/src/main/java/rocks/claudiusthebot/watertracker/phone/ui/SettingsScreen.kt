@@ -66,12 +66,6 @@ fun SettingsScreen(vm: WaterViewModel) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            Text("Settings",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold)
-        }
-
-        item {
             ElevatedCard(
                 shape = MaterialTheme.shapes.extraLarge,
                 modifier = Modifier.fillMaxWidth()

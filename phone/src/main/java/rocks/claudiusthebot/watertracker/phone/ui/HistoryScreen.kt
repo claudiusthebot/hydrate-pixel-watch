@@ -51,18 +51,10 @@ fun HistoryScreen(vm: WaterViewModel) {
 
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        item {
-            Text(
-                "Last 7 days",
-                style = MaterialTheme.typography.headlineSmall
-            )
-        }
-        item {
-            WeeklyBarCard(days = days)
-        }
+        item { WeeklyBarCard(days = days) }
         items(days, key = { it.date }) { d ->
             DayRow(d)
         }

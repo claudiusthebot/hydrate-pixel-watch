@@ -1,11 +1,7 @@
 package rocks.claudiusthebot.watertracker.phone.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,22 +13,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.LocalDrink
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -42,9 +33,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import rocks.claudiusthebot.watertracker.phone.WaterViewModel
@@ -78,7 +70,6 @@ fun TodayScreen(vm: WaterViewModel) {
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // HC + sync diagnostics — makes any misconfiguration visible.
         item {
             HcDiagnosticsCard(
                 availability = hc.availability,
@@ -98,7 +89,7 @@ fun TodayScreen(vm: WaterViewModel) {
         }
 
         item {
-            QuickAddStrip(
+            QuickDrinkGrid(
                 quickAdds = settings.quickAddsMl,
                 onPick = { vm.addIntake(it) },
                 onCustom = { sheetOpen = true }
@@ -106,22 +97,9 @@ fun TodayScreen(vm: WaterViewModel) {
         }
 
         if (today.entries.isEmpty()) {
-            item {
-                Text(
-                    "Nothing logged yet today — tap a quick-add to begin.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
-            }
+            item { EmptyTodayIllustration() }
         } else {
-            item {
-                Text(
-                    "Today's log",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            item { TodayLogHeader(count = today.entries.size, totalMl = today.totalMl) }
             items(today.entries, key = { it.id }) { entry ->
                 EntryRow(entry = entry, onDelete = { vm.delete(entry) })
             }
@@ -140,100 +118,63 @@ fun TodayScreen(vm: WaterViewModel) {
 }
 
 @Composable
-private fun QuickAddStrip(
-    quickAdds: List<Int>,
-    onPick: (Int) -> Unit,
-    onCustom: () -> Unit
-) {
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge
+private fun TodayLogHeader(count: Int, totalMl: Int) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 6.dp, start = 4.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(Modifier.padding(18.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Rounded.LocalDrink,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(Modifier.width(8.dp))
-                Text("Quick add", style = MaterialTheme.typography.titleMedium)
-            }
-            Spacer(Modifier.height(12.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                quickAdds.take(4).forEach { ml ->
-                    QuickButton(
-                        label = "$ml",
-                        modifier = Modifier.weight(1f),
-                        onClick = { onPick(ml) }
-                    )
-                }
-                OutlinedButton(
-                    onClick = onCustom,
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.weight(0.6f)
-                ) {
-                    Icon(Icons.Rounded.Add, contentDescription = "Custom")
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun QuickButton(
-    label: String,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    val source = remember { MutableInteractionSource() }
-    val pressed by source.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.94f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "scale"
-    )
-
-    Button(
-        onClick = onClick,
-        interactionSource = source,
-        shape = MaterialTheme.shapes.medium,
-        modifier = modifier.scale(scale)
-    ) {
-        Text(label, fontWeight = FontWeight.SemiBold)
+        Text(
+            "Today's log",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            "$count drink${if (count == 1) "" else "s"} · $totalMl ml",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
 @Composable
 private fun EntryRow(entry: WaterEntry, onDelete: () -> Unit) {
+    val fromWatch = entry.source.contains("wear")
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
         )
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp)
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
+            // Drop disc
             Box(
                 modifier = Modifier
                     .size(44.dp)
                     .padding(2.dp),
                 contentAlignment = Alignment.Center
             ) {
+                Canvas(Modifier.fillMaxSize()) {
+                    drawCircle(
+                        color = Color(0xFF0288D1).copy(alpha = 0.12f),
+                        radius = size.minDimension / 2f,
+                        center = Offset(size.width / 2f, size.height / 2f)
+                    )
+                }
                 Icon(
-                    Icons.Rounded.LocalDrink,
+                    Icons.Rounded.WaterDrop,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.size(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     "${entry.volumeMl} ml",
@@ -242,7 +183,7 @@ private fun EntryRow(entry: WaterEntry, onDelete: () -> Unit) {
                 )
                 Text(
                     text = formatTime(entry.timestampMs) +
-                        if (entry.source.contains("wear")) " · from watch" else "",
+                        if (fromWatch) " · from watch" else "",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -254,6 +195,59 @@ private fun EntryRow(entry: WaterEntry, onDelete: () -> Unit) {
     }
 }
 
+@Composable
+private fun EmptyTodayIllustration() {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier.size(72.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(Modifier.fillMaxSize()) {
+                    drawCircle(
+                        brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                            listOf(
+                                Color(0xFF4FC3F7).copy(alpha = 0.35f),
+                                Color(0xFF0288D1).copy(alpha = 0.1f),
+                                Color.Transparent
+                            )
+                        ),
+                        radius = size.minDimension / 2f,
+                        center = Offset(size.width / 2f, size.height / 2f)
+                    )
+                }
+                Icon(
+                    Icons.Rounded.WaterDrop,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(44.dp)
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "Nothing logged yet today",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Tap a drink size above to start your day.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
 
 private fun formatTime(ms: Long): String {
     val dt = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault())
@@ -268,4 +262,3 @@ private fun rememberHealthConnectPermissionContract():
             .createRequestPermissionResultContract()
     }
 }
-
