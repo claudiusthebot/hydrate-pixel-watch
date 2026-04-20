@@ -1,12 +1,15 @@
 package rocks.claudiusthebot.watertracker.phone.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,36 +24,29 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.rounded.LocalDrink
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
 import rocks.claudiusthebot.watertracker.phone.WaterViewModel
 import rocks.claudiusthebot.watertracker.phone.health.HealthConnectManager
 import rocks.claudiusthebot.watertracker.shared.WaterEntry
@@ -70,32 +66,27 @@ fun TodayScreen(vm: WaterViewModel) {
         vm.onPermissionsResult()
     }
 
-    var customOpen by remember { mutableStateOf(false) }
+    var sheetOpen by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            horizontal = 16.dp, vertical = 12.dp
-        ),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Health connect card — surface first if not ready
         when (hc.availability) {
             HealthConnectManager.Availability.NOT_SUPPORTED, null -> Unit
             HealthConnectManager.Availability.NEEDS_UPDATE -> item { HcNeedsInstallCard() }
-            HealthConnectManager.Availability.INSTALLED -> {
-                if (!hc.hasPermissions) {
-                    item {
-                        HcConnectCard(onConnect = { launcher.launch(HealthConnectManager.PERMISSIONS) })
-                    }
+            HealthConnectManager.Availability.INSTALLED -> if (!hc.hasPermissions) {
+                item {
+                    HcConnectCard(onConnect = { launcher.launch(HealthConnectManager.PERMISSIONS) })
                 }
             }
         }
 
         item {
-            HeroProgress(
-                current = today.totalMl,
-                goal = today.goalMl
+            WaterFillHero(
+                currentMl = today.totalMl,
+                goalMl = today.goalMl
             )
         }
 
@@ -103,14 +94,14 @@ fun TodayScreen(vm: WaterViewModel) {
             QuickAddStrip(
                 quickAdds = settings.quickAddsMl,
                 onPick = { vm.addIntake(it) },
-                onCustom = { customOpen = true }
+                onCustom = { sheetOpen = true }
             )
         }
 
         if (today.entries.isEmpty()) {
             item {
                 Text(
-                    "Nothing logged yet today — tap a quick-add or + to begin.",
+                    "Nothing logged yet today — tap a quick-add to begin.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -130,92 +121,14 @@ fun TodayScreen(vm: WaterViewModel) {
         }
     }
 
-    if (customOpen) {
-        CustomAmountDialog(
-            onDismiss = { customOpen = false },
+    if (sheetOpen) {
+        CustomAmountSheet(
+            onDismiss = { sheetOpen = false },
             onConfirm = { ml ->
-                customOpen = false
+                sheetOpen = false
                 if (ml > 0) vm.addIntake(ml)
             }
         )
-    }
-}
-
-@Composable
-private fun HeroProgress(current: Int, goal: Int) {
-    val pct = if (goal > 0) (current.toFloat() / goal).coerceIn(0f, 1.4f) else 0f
-    val animated by animateFloatAsState(pct, tween(durationMillis = 700), label = "progress")
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Today",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-            Spacer(Modifier.height(6.dp))
-
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(220.dp)) {
-                val onContainer = MaterialTheme.colorScheme.onPrimaryContainer
-                val track = onContainer.copy(alpha = 0.15f)
-                val primary = MaterialTheme.colorScheme.primary
-                androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
-                    val stroke = 18.dp.toPx()
-                    val pad = stroke
-                    val sz = Size(size.width - pad * 2, size.height - pad * 2)
-                    val origin = androidx.compose.ui.geometry.Offset(pad, pad)
-                    // track
-                    drawArc(
-                        color = track,
-                        startAngle = -90f, sweepAngle = 360f, useCenter = false,
-                        topLeft = origin, size = sz,
-                        style = Stroke(width = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                    )
-                    // fill
-                    drawArc(
-                        brush = Brush.sweepGradient(
-                            listOf(primary, primary.copy(alpha = 0.7f), primary),
-                            center = androidx.compose.ui.geometry.Offset(
-                                origin.x + sz.width / 2,
-                                origin.y + sz.height / 2
-                            )
-                        ),
-                        startAngle = -90f, sweepAngle = 360f * animated.coerceAtMost(1f),
-                        useCenter = false,
-                        topLeft = origin, size = sz,
-                        style = Stroke(width = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                    )
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "$current",
-                        fontSize = 48.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Text(
-                        text = "of $goal ml",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = "${(animated * 100).toInt()}% of goal",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                    )
-                }
-            }
-        }
     }
 }
 
@@ -225,32 +138,38 @@ private fun QuickAddStrip(
     onPick: (Int) -> Unit,
     onCustom: () -> Unit
 ) {
-    Card(
+    ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large
+        shape = MaterialTheme.shapes.extraLarge
     ) {
-        Column(Modifier.padding(16.dp)) {
-            Text("Quick add", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(10.dp))
+        Column(Modifier.padding(18.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Rounded.LocalDrink,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("Quick add", style = MaterialTheme.typography.titleMedium)
+            }
+            Spacer(Modifier.height(12.dp))
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                quickAdds.forEach { ml ->
-                    Button(
-                        onClick = { onPick(ml) },
-                        shape = MaterialTheme.shapes.medium,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("$ml")
-                    }
+                quickAdds.take(4).forEach { ml ->
+                    QuickButton(
+                        label = "$ml",
+                        modifier = Modifier.weight(1f),
+                        onClick = { onPick(ml) }
+                    )
                 }
                 OutlinedButton(
                     onClick = onCustom,
                     shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(0.6f)
                 ) {
-                    Icon(Icons.Rounded.Add, contentDescription = null)
+                    Icon(Icons.Rounded.Add, contentDescription = "Custom")
                 }
             }
         }
@@ -258,26 +177,65 @@ private fun QuickAddStrip(
 }
 
 @Composable
+private fun QuickButton(
+    label: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.94f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "scale"
+    )
+
+    Button(
+        onClick = onClick,
+        interactionSource = source,
+        shape = MaterialTheme.shapes.medium,
+        modifier = modifier.scale(scale)
+    ) {
+        Text(label, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
 private fun EntryRow(entry: WaterEntry, onDelete: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp)
         ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .padding(2.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Rounded.LocalDrink,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     "${entry.volumeMl} ml",
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = formatTime(entry.timestampMs) +
-                        if (entry.source.contains("wear")) " · ⌚" else "",
+                        if (entry.source.contains("wear")) " · from watch" else "",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -291,21 +249,22 @@ private fun EntryRow(entry: WaterEntry, onDelete: () -> Unit) {
 
 @Composable
 private fun HcConnectCard(onConnect: () -> Unit) {
-    Card(
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
+    ElevatedCard(
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
         )
     ) {
-        Column(Modifier.padding(18.dp)) {
+        Column(Modifier.padding(20.dp)) {
             Text("Connect Health Connect",
                 style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSecondaryContainer)
             Spacer(Modifier.height(6.dp))
             Text("Grant read + write permission for hydration records so intake syncs across your devices.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer)
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
             Button(onClick = onConnect, shape = MaterialTheme.shapes.medium) {
                 Text("Grant permission")
             }
@@ -316,14 +275,15 @@ private fun HcConnectCard(onConnect: () -> Unit) {
 @Composable
 private fun HcNeedsInstallCard() {
     Card(
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.errorContainer
         )
     ) {
-        Column(Modifier.padding(18.dp)) {
+        Column(Modifier.padding(20.dp)) {
             Text("Health Connect isn't installed",
                 style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onErrorContainer)
             Spacer(Modifier.height(6.dp))
             Text("Install Health Connect from Play Store to enable cross-device sync.",
@@ -331,30 +291,6 @@ private fun HcNeedsInstallCard() {
                 color = MaterialTheme.colorScheme.onErrorContainer)
         }
     }
-}
-
-@Composable
-private fun CustomAmountDialog(onDismiss: () -> Unit, onConfirm: (Int) -> Unit) {
-    var text by remember { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Custom amount") },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it.filter { c -> c.isDigit() } },
-                label = { Text("ml") },
-                singleLine = true,
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                    keyboardType = KeyboardType.Number
-                )
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(text.toIntOrNull() ?: 0) }) { Text("Add") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
 }
 
 private fun formatTime(ms: Long): String {
@@ -365,10 +301,9 @@ private fun formatTime(ms: Long): String {
 @Composable
 private fun rememberHealthConnectPermissionContract():
     androidx.activity.result.contract.ActivityResultContract<Set<String>, Set<String>> {
-    val contract = remember {
+    return remember {
         androidx.health.connect.client.PermissionController
             .createRequestPermissionResultContract()
     }
-    return contract
 }
 

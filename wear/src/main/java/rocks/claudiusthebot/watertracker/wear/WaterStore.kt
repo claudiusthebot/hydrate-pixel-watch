@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import rocks.claudiusthebot.watertracker.shared.DaySummary
 import rocks.claudiusthebot.watertracker.shared.WaterEntry
 import rocks.claudiusthebot.watertracker.wear.health.WearHealthConnect
+import rocks.claudiusthebot.watertracker.wear.ongoing.OngoingHydration
 import rocks.claudiusthebot.watertracker.wear.sync.PhoneSync
 import java.time.LocalDate
 import java.util.UUID
@@ -71,6 +72,8 @@ class WaterStore(
                 goalMl = goal,
                 entries = entries
             )
+            // Update the on-watch-face ongoing progress chip.
+            OngoingHydration.update(context, _today.value.totalMl, _today.value.goalMl)
         }
     }
 

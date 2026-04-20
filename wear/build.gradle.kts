@@ -12,8 +12,8 @@ android {
         applicationId = "rocks.claudiusthebot.watertracker"
         minSdk = 30
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
     }
 
     buildTypes {
@@ -63,6 +63,12 @@ dependencies {
 
     // Wearable Data Layer
     implementation("com.google.android.gms:play-services-wearable:18.2.0")
+
+    // Ongoing activity — watch-face progress chip
+    implementation("androidx.wear:wear-ongoing:1.0.0")
+
+    // Rotary input support
+    implementation("androidx.wear.compose:compose-material:1.4.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling:1.7.3")
 }
