@@ -29,6 +29,13 @@
         android:theme="@style/Theme.WaterTracker"
         tools:targetApi="34">
 
+        <!-- Required by Google Play services — the Wearable API won't bind
+             without it. Missing this was why capability discovery silently
+             returned empty. -->
+        <meta-data
+            android:name="com.google.android.gms.version"
+            android:value="@integer/google_play_services_version" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

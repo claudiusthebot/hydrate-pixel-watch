@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Declares the capabilities provided by this handheld app. The watch uses
+    CapabilityClient.getCapability("water_tracker_handheld", FILTER_REACHABLE)
+    to find phones on which our app is installed.
+
+    See: github.com/android/wear-os-samples/tree/main/DataLayer
+-->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string-array
+        name="android_wear_capabilities"
+        translatable="false"
+        tools:ignore="UnusedResources">
+        <item>water_tracker_handheld</item>
+    </string-array>
+</resources>

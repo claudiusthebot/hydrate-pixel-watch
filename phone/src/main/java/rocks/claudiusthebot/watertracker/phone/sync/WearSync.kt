@@ -18,11 +18,30 @@ class WearSync(private val context: Context) {
     private val nodeClient = Wearable.getNodeClient(context)
     private val capabilityClient = Wearable.getCapabilityClient(context)
 
+    /**
+     * Register the handheld's capability at runtime as a belt-and-braces
+     * alongside res/values/wear.xml. Idempotent, cheap to call repeatedly.
+     */
+    suspend fun ensureLocalCapability() {
+        try {
+            capabilityClient.addLocalCapability(SyncConstants.CAPABILITY_HANDHELD).await()
+        } catch (e: Exception) {
+            Log.w(TAG, "addLocalCapability failed", e)
+        }
+    }
+
+    /** Returns true iff at least one watch node with our capability is reachable. */
+    suspend fun isWearReachable(): Boolean = wearNodes().isNotEmpty()
+
+    /** Returns the set of node ids that currently expose the wear capability. */
+    suspend fun wearNodeIds(): List<String> = wearNodes()
+
     private suspend fun wearNodes(): List<String> = try {
         val caps = capabilityClient
             .getCapability(SyncConstants.CAPABILITY_WEAR, 1).await()
         caps.nodes.map { it.id }
     } catch (e: Exception) {
+        Log.w(TAG, "getCapability failed, falling back to connectedNodes", e)
         try { nodeClient.connectedNodes.await().map { it.id } } catch (_: Exception) { emptyList() }
     }
 

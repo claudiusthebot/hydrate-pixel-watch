@@ -1,6 +1,10 @@
 package rocks.claudiusthebot.watertracker.wear
 
 import android.app.Application
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import rocks.claudiusthebot.watertracker.wear.sync.PhoneSync
 
 /**
@@ -15,9 +19,14 @@ class WearWaterApp : Application() {
     lateinit var sync: PhoneSync
         private set
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override fun onCreate() {
         super.onCreate()
         sync = PhoneSync(this)
         store = WaterStore(this, sync)
+
+        // Register our wearable capability so the phone can discover us.
+        scope.launch { sync.ensureLocalCapability() }
     }
 }

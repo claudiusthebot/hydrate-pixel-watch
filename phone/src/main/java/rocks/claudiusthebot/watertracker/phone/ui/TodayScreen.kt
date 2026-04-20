@@ -71,14 +71,14 @@ fun TodayScreen(vm: WaterViewModel) {
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val app = context.applicationContext as rocks.claudiusthebot.watertracker.phone.WaterApp
+    val wearSync = remember { rocks.claudiusthebot.watertracker.phone.sync.WearSync(context) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Always show the HC diagnostics card — so if anything is wrong,
-        // it's obvious at a glance.
+        // HC + sync diagnostics — makes any misconfiguration visible.
         item {
             HcDiagnosticsCard(
                 availability = hc.availability,
@@ -88,6 +88,7 @@ fun TodayScreen(vm: WaterViewModel) {
                 onOpenPermissions = { launcher.launch(HealthConnectManager.PERMISSIONS) }
             )
         }
+        item { SyncDiagnosticsCard(sync = wearSync) }
 
         item {
             WaterFillHero(

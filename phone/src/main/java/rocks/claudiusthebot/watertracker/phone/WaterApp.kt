@@ -10,6 +10,7 @@ import rocks.claudiusthebot.watertracker.phone.health.HealthConnectManager
 import rocks.claudiusthebot.watertracker.phone.notif.HydrateNotifications
 import rocks.claudiusthebot.watertracker.phone.notif.ReminderPrefs
 import rocks.claudiusthebot.watertracker.phone.notif.ReminderWorker
+import rocks.claudiusthebot.watertracker.phone.sync.WearSync
 
 class WaterApp : Application() {
     lateinit var hc: HealthConnectManager
@@ -35,5 +36,8 @@ class WaterApp : Application() {
             if (s.enabled) ReminderWorker.schedule(this@WaterApp, s.intervalMinutes.toLong())
             else ReminderWorker.cancel(this@WaterApp)
         }
+
+        // Register our wearable capability so the watch can discover us.
+        scope.launch { WearSync(this@WaterApp).ensureLocalCapability() }
     }
 }

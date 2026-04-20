@@ -17,7 +17,15 @@
         tools:targetApi="34">
 
         <uses-library android:name="com.google.android.wearable" android:required="true" />
+
         <meta-data android:name="com.google.android.wearable.standalone" android:value="true" />
+
+        <!-- Required by Google Play services — the Wearable API won't bind
+             without it. Missing this was why capability discovery silently
+             returned empty. -->
+        <meta-data
+            android:name="com.google.android.gms.version"
+            android:value="@integer/google_play_services_version" />
 
         <activity
             android:name=".MainActivity"
@@ -30,6 +38,12 @@
             </intent-filter>
         </activity>
 
+        <!--
+            WearableListenerService: activates automatically when the phone
+            sends a message to path prefix /water. Capability advertising is
+            done via res/values/wear.xml's android_wear_capabilities array
+            (NOT via a service meta-data — that pattern was wrong in v0.5.0).
+        -->
         <service
             android:name=".sync.IntakeWearListener"
             android:exported="true">
@@ -37,10 +51,6 @@
                 <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
                 <data android:scheme="wear" android:host="*" android:pathPrefix="/water" />
             </intent-filter>
-            <!-- Capability broadcast so the phone can discover us -->
-            <meta-data
-                android:name="com.google.android.gms.wearable.capability"
-                android:resource="@xml/wear_capabilities" />
         </service>
     </application>
 </manifest>
