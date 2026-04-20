@@ -2,11 +2,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Health Connect permissions (hydration). These MUST be declared in the
+         manifest — otherwise PermissionController.createRequestPermissionResultContract()
+         returns an empty set and the HC permission dialog silently no-ops. -->
+    <uses-permission android:name="android.permission.health.READ_HYDRATION" />
+    <uses-permission android:name="android.permission.health.WRITE_HYDRATION" />
+
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
-    <!-- Health Connect permissions: declared at runtime via the HC framework,
-         but we also declare that we query Health Connect. -->
+    <!-- So our app can resolve the Health Connect provider package + the
+         set of compatible apps (for display attribution). -->
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
         <intent>
@@ -33,23 +39,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Health Connect permissions rationale — required by HC framework. -->
+            <!-- Privacy-policy rationale target from the HC permissions dialog. -->
             <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
             </intent-filter>
-        </activity>
 
-        <!-- HC requires a rationale activity alias as of Jan 2024 for HC 1.1+. -->
-        <activity-alias
-            android:name="ViewPermissionUsageActivity"
-            android:exported="true"
-            android:targetActivity=".MainActivity"
-            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <!-- Android 14+ permission usage viewer. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
                 <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
             </intent-filter>
-        </activity-alias>
+        </activity>
 
         <!-- Listens for Data Layer messages from the watch. -->
         <service

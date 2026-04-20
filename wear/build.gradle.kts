@@ -13,8 +13,8 @@ android {
         applicationId = "rocks.claudiusthebot.watertracker"
         minSdk = 34  // Wear OS 5+ only (Pixel Watch 3 / Wear OS 6 target)
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 5
+        versionName = "0.5.0"
     }
 
     buildTypes {
