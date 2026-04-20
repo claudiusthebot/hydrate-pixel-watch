@@ -13,25 +13,52 @@ class PhoneSync(private val context: Context) {
 
     private val messageClient = Wearable.getMessageClient(context)
     private val nodeClient = Wearable.getNodeClient(context)
+    private val capabilityClient = Wearable.getCapabilityClient(context)
 
     private suspend fun phoneNodes(): List<String> = try {
-        val caps = Wearable.getCapabilityClient(context)
+        val caps = capabilityClient
             .getCapability(SyncConstants.CAPABILITY_HANDHELD, 1).await()
         caps.nodes.map { it.id }
     } catch (e: Exception) {
-        Log.w(TAG, "no handheld capability, falling back to connectedNodes", e)
         try { nodeClient.connectedNodes.await().map { it.id } } catch (_: Exception) { emptyList() }
     }
 
-    suspend fun pushIntakeAdd(entry: WaterEntry) {
+    /** Returns true iff the message was acknowledged by at least one node. */
+    suspend fun pushIntakeAdd(entry: WaterEntry): Boolean {
         val payload = Json.encodeToString(entry).toByteArray(Charsets.UTF_8)
-        for (nodeId in phoneNodes()) {
+        val nodes = phoneNodes()
+        if (nodes.isEmpty()) {
+            Log.w(TAG, "no phone nodes reachable for intake")
+            return false
+        }
+        var anyOk = false
+        for (nodeId in nodes) {
             try {
                 messageClient.sendMessage(nodeId, SyncConstants.PATH_INTAKE_ADD, payload).await()
+                anyOk = true
             } catch (e: Exception) {
-                Log.w(TAG, "sendMessage failed to $nodeId", e)
+                Log.w(TAG, "sendMessage to $nodeId failed", e)
             }
         }
+        return anyOk
+    }
+
+    /** Ask the phone for a fresh total + entries list. */
+    suspend fun requestRefresh(): Boolean {
+        val nodes = phoneNodes()
+        if (nodes.isEmpty()) return false
+        var anyOk = false
+        for (nodeId in nodes) {
+            try {
+                messageClient.sendMessage(
+                    nodeId, SyncConstants.PATH_REQUEST_REFRESH, ByteArray(0)
+                ).await()
+                anyOk = true
+            } catch (e: Exception) {
+                Log.w(TAG, "requestRefresh to $nodeId failed", e)
+            }
+        }
+        return anyOk
     }
 
     companion object { private const val TAG = "PhoneSync" }

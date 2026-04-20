@@ -59,6 +59,7 @@ fun TodayScreen(vm: WaterViewModel) {
     val today by vm.today.collectAsState()
     val hc by vm.hcState.collectAsState()
     val settings by vm.settings.collectAsState()
+    val lastHcEvent by vm.lastHcEvent.collectAsState()
 
     val launcher = rememberLauncherForActivityResult(
         contract = rememberHealthConnectPermissionContract()
@@ -68,19 +69,24 @@ fun TodayScreen(vm: WaterViewModel) {
 
     var sheetOpen by remember { mutableStateOf(false) }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val app = context.applicationContext as rocks.claudiusthebot.watertracker.phone.WaterApp
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        when (hc.availability) {
-            HealthConnectManager.Availability.NOT_SUPPORTED, null -> Unit
-            HealthConnectManager.Availability.NEEDS_UPDATE -> item { HcNeedsInstallCard() }
-            HealthConnectManager.Availability.INSTALLED -> if (!hc.hasPermissions) {
-                item {
-                    HcConnectCard(onConnect = { launcher.launch(HealthConnectManager.PERMISSIONS) })
-                }
-            }
+        // Always show the HC diagnostics card — so if anything is wrong,
+        // it's obvious at a glance.
+        item {
+            HcDiagnosticsCard(
+                availability = hc.availability,
+                hasPermissions = hc.hasPermissions,
+                lastEvent = lastHcEvent,
+                app = app,
+                onOpenPermissions = { launcher.launch(HealthConnectManager.PERMISSIONS) }
+            )
         }
 
         item {
@@ -247,51 +253,6 @@ private fun EntryRow(entry: WaterEntry, onDelete: () -> Unit) {
     }
 }
 
-@Composable
-private fun HcConnectCard(onConnect: () -> Unit) {
-    ElevatedCard(
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        )
-    ) {
-        Column(Modifier.padding(20.dp)) {
-            Text("Connect Health Connect",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSecondaryContainer)
-            Spacer(Modifier.height(6.dp))
-            Text("Grant read + write permission for hydration records so intake syncs across your devices.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer)
-            Spacer(Modifier.height(14.dp))
-            Button(onClick = onConnect, shape = MaterialTheme.shapes.medium) {
-                Text("Grant permission")
-            }
-        }
-    }
-}
-
-@Composable
-private fun HcNeedsInstallCard() {
-    Card(
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer
-        )
-    ) {
-        Column(Modifier.padding(20.dp)) {
-            Text("Health Connect isn't installed",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onErrorContainer)
-            Spacer(Modifier.height(6.dp))
-            Text("Install Health Connect from Play Store to enable cross-device sync.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer)
-        }
-    }
-}
 
 private fun formatTime(ms: Long): String {
     val dt = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault())

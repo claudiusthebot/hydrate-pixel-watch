@@ -47,6 +47,10 @@ class WaterViewModel(app: Application) : AndroidViewModel(app) {
     // Tracks goal-reached so we only celebrate once per day.
     private var celebratedForDate: String? = null
 
+    // Records last write success/failure for diagnostics.
+    private val _lastHcEvent = MutableStateFlow<String?>(null)
+    val lastHcEvent: StateFlow<String?> = _lastHcEvent.asStateFlow()
+
     init {
         refresh()
     }
@@ -60,10 +64,16 @@ class WaterViewModel(app: Application) : AndroidViewModel(app) {
                 hasPermissions = hc.hasAllPermissions()
             )
             if (_hcState.value.hasPermissions) {
-                repo.refreshToday()
-                val t = repo.today.value
-                wearSync.pushTotalUpdate(t.totalMl, t.goalMl)
-                maybeCelebrate(t)
+                try {
+                    repo.refreshToday()
+                    val t = repo.today.value
+                    wearSync.pushTotalUpdate(t.totalMl, t.goalMl)
+                    wearSync.pushEntriesSync(t.entries)
+                    maybeCelebrate(t)
+                    _lastHcEvent.value = "read ok (${t.entries.size} entries)"
+                } catch (e: Exception) {
+                    _lastHcEvent.value = "read failed: ${e.message}"
+                }
             }
         }
     }
@@ -78,19 +88,31 @@ class WaterViewModel(app: Application) : AndroidViewModel(app) {
     fun addIntake(ml: Int) {
         if (ml <= 0) return
         viewModelScope.launch {
-            val entry = repo.addIntake(ml, source = "phone")
-            wearSync.pushIntakeAdd(entry)
-            val t = repo.today.value
-            wearSync.pushTotalUpdate(t.totalMl, t.goalMl)
-            maybeCelebrate(t)
+            try {
+                val entry = repo.addIntake(ml, source = "phone")
+                wearSync.pushIntakeAdd(entry)
+                val t = repo.today.value
+                wearSync.pushTotalUpdate(t.totalMl, t.goalMl)
+                wearSync.pushEntriesSync(t.entries)
+                maybeCelebrate(t)
+                _lastHcEvent.value = "wrote $ml ml ok"
+            } catch (e: Exception) {
+                _lastHcEvent.value = "write failed: ${e.message}"
+            }
         }
     }
 
     fun delete(entry: WaterEntry) {
         viewModelScope.launch {
-            repo.delete(entry)
-            val t = repo.today.value
-            wearSync.pushTotalUpdate(t.totalMl, t.goalMl)
+            try {
+                repo.delete(entry)
+                val t = repo.today.value
+                wearSync.pushTotalUpdate(t.totalMl, t.goalMl)
+                wearSync.pushEntriesSync(t.entries)
+                _lastHcEvent.value = "deleted ok"
+            } catch (e: Exception) {
+                _lastHcEvent.value = "delete failed: ${e.message}"
+            }
         }
     }
 

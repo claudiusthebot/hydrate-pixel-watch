@@ -46,6 +46,10 @@ object SyncConstants {
     const val PATH_INTAKE_DELETE = "/water/intake/delete"
     /** Wearable Data Layer message path for "today's running total changed". */
     const val PATH_TOTAL_UPDATE = "/water/total/update"
+    /** Full list of today's entries pushed to the watch (JSON array of WaterEntry). */
+    const val PATH_ENTRIES_SYNC = "/water/entries/sync"
+    /** Watch → phone: please send me a fresh total + entries list. */
+    const val PATH_REQUEST_REFRESH = "/water/request/refresh"
     /** Capability for the handheld app — used by the watch to find a peer. */
     const val CAPABILITY_HANDHELD = "water_tracker_handheld"
     /** Capability for the wear app — used by the phone to find a peer. */

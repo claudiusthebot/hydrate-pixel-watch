@@ -12,41 +12,38 @@ import rocks.claudiusthebot.watertracker.phone.WaterApp
 import rocks.claudiusthebot.watertracker.shared.SyncConstants
 import rocks.claudiusthebot.watertracker.shared.WaterEntry
 
-/**
- * Receives intake events from the watch via the Data Layer and mirrors them
- * into Health Connect on the phone side, so the phone DB stays in sync.
- */
 class IntakeWearListener : WearableListenerService() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onMessageReceived(event: MessageEvent) {
         val app = applicationContext as? WaterApp ?: return
+        val sync = WearSync(this)
         when (event.path) {
             SyncConstants.PATH_INTAKE_ADD -> {
                 val raw = event.data.toString(Charsets.UTF_8)
                 val entry = try {
                     Json.decodeFromString<WaterEntry>(raw)
                 } catch (e: Exception) {
-                    Log.w(TAG, "bad payload", e)
-                    return
+                    Log.w(TAG, "bad intake payload", e); return
                 }
                 scope.launch {
                     app.repo.addIntake(entry.volumeMl, source = "wear")
+                    val t = app.repo.today.value
+                    sync.pushTotalUpdate(t.totalMl, t.goalMl)
+                    sync.pushEntriesSync(t.entries)
                 }
             }
-            SyncConstants.PATH_INTAKE_DELETE -> {
-                val id = event.data.toString(Charsets.UTF_8)
+            SyncConstants.PATH_REQUEST_REFRESH -> {
                 scope.launch {
-                    app.repo.readDate(java.time.LocalDate.now()).entries
-                        .firstOrNull { it.id == id }
-                        ?.let { app.repo.delete(it) }
+                    app.repo.refreshToday()
+                    val t = app.repo.today.value
+                    sync.pushTotalUpdate(t.totalMl, t.goalMl)
+                    sync.pushEntriesSync(t.entries)
                 }
             }
         }
     }
 
-    companion object {
-        private const val TAG = "IntakeWearListener"
-    }
+    companion object { private const val TAG = "IntakeWearListener" }
 }

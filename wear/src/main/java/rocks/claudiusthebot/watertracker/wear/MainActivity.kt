@@ -20,10 +20,13 @@ class MainActivity : ComponentActivity() {
         requestNotifPermIfNeeded()
         val app = application as WearWaterApp
 
-        setContent { WearRoot(app.store, app.hc) }
+        setContent { WearRoot(app.store) }
 
         lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.RESUMED) { app.store.refresh() }
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                app.store.refresh()
+                app.store.requestRefresh()  // ask phone for a fresh sync
+            }
         }
     }
 

@@ -13,8 +13,8 @@ android {
         applicationId = "rocks.claudiusthebot.watertracker"
         minSdk = 34  // Wear OS 5+ only (Pixel Watch 3 / Wear OS 6 target)
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
     }
 
     buildTypes {
@@ -63,10 +63,7 @@ dependencies {
 
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
-    // Health Connect
-    implementation("androidx.health.connect:connect-client:1.1.0-rc02")
-
-    // Wearable Data Layer
+    // Wearable Data Layer (watch is a thin client — HC lives on the phone)
     implementation("com.google.android.gms:play-services-wearable:19.0.0")
 
     // Ongoing activity on watch face

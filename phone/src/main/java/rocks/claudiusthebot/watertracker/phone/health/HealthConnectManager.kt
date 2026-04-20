@@ -52,6 +52,28 @@ class HealthConnectManager(private val context: Context) {
 
     fun permissionContract() = PermissionController.createRequestPermissionResultContract()
 
+    /**
+     * Returns the set of already-granted permissions so the UI can show
+     * which ones the user is missing (read, write, or both).
+     */
+    suspend fun grantedPermissions(): Set<String> {
+        val c = client ?: return emptySet()
+        return try { c.permissionController.getGrantedPermissions() } catch (_: Exception) { emptySet() }
+    }
+
+    /**
+     * Intent to open the Health Connect app's own settings (e.g. to
+     * install / update / grant permissions from the system UI).
+     */
+    fun openHealthConnectIntent(): android.content.Intent? {
+        val pkg = "com.google.android.apps.healthdata"
+        val pm = context.packageManager
+        return pm.getLaunchIntentForPackage(pkg) ?: android.content.Intent(
+            android.content.Intent.ACTION_VIEW,
+            android.net.Uri.parse("https://play.google.com/store/apps/details?id=$pkg")
+        ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+
     suspend fun hasAllPermissions(): Boolean {
         val c = client ?: return false
         return c.permissionController.getGrantedPermissions().containsAll(PERMISSIONS)

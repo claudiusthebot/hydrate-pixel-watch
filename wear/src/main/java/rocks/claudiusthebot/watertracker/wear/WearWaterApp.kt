@@ -1,13 +1,15 @@
 package rocks.claudiusthebot.watertracker.wear
 
 import android.app.Application
-import rocks.claudiusthebot.watertracker.wear.health.WearHealthConnect
 import rocks.claudiusthebot.watertracker.wear.sync.PhoneSync
-import rocks.claudiusthebot.watertracker.wear.WaterStore
 
+/**
+ * The watch intentionally does **not** talk to Health Connect itself —
+ * Wear OS's HC availability is patchy per-device, and the companion-app
+ * pattern is: **phone is the HC gateway, watch is a thin Data Layer
+ * client**. See WaterStore for the sync protocol.
+ */
 class WearWaterApp : Application() {
-    lateinit var hc: WearHealthConnect
-        private set
     lateinit var store: WaterStore
         private set
     lateinit var sync: PhoneSync
@@ -15,8 +17,7 @@ class WearWaterApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        hc = WearHealthConnect(this)
         sync = PhoneSync(this)
-        store = WaterStore(this, hc, sync)
+        store = WaterStore(this, sync)
     }
 }
