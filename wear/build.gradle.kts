@@ -13,8 +13,8 @@ android {
         applicationId = "rocks.claudiusthebot.watertracker"
         minSdk = 34  // Wear OS 5+ only (Pixel Watch 3 / Wear OS 6 target)
         targetSdk = 36
-        versionCode = 5
-        versionName = "0.5.0"
+        versionCode = 7
+        versionName = "0.7.0"
     }
 
     buildTypes {
@@ -41,15 +41,19 @@ dependencies {
     implementation(project(":shared"))
 
     // Compose for Wear — use BOM for ui/foundation alignment
-    implementation(platform("androidx.compose:compose-bom:2025.01.01"))
+    implementation(platform("androidx.compose:compose-bom:2025.04.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.foundation:foundation")
+    // No material-icons dep on wear — drink icons live in WaterIcons.kt so
+    // we don't pull the 40+ MB material-icons-extended catalogue.
 
-    // Wear Compose Material 3 (Material 3 Expressive)
-    implementation("androidx.wear.compose:compose-material3:1.0.0-alpha33")
-    implementation("androidx.wear.compose:compose-foundation:1.4.1")
-    implementation("androidx.wear.compose:compose-navigation:1.4.1")
+    // Wear Compose Material 3 (Material 3 Expressive) — latest stable,
+    // ships EdgeButton + ScreenScaffold + TimeText + PositionIndicator +
+    // Vignette + rotary-scrollable support.
+    implementation("androidx.wear.compose:compose-material3:1.5.0")
+    implementation("androidx.wear.compose:compose-foundation:1.5.0")
+    implementation("androidx.wear.compose:compose-navigation:1.5.0")
     implementation("androidx.wear:wear:1.3.0")
     implementation("androidx.wear:wear-tooling-preview:1.0.0")
 

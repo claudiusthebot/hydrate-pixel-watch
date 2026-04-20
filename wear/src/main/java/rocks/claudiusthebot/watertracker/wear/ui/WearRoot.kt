@@ -1,21 +1,17 @@
 package rocks.claudiusthebot.watertracker.wear.ui
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -24,48 +20,41 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
-import androidx.wear.compose.material3.FilledTonalButton
+import androidx.wear.compose.foundation.rotary.RotaryScrollableDefaults
+import androidx.wear.compose.foundation.rotary.rotaryScrollable
+import androidx.wear.compose.material3.AppScaffold
+import androidx.wear.compose.material3.EdgeButton
+import androidx.wear.compose.material3.EdgeButtonSize
+import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.MaterialTheme
+import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
+import androidx.wear.compose.material3.TimeText
 import kotlinx.coroutines.launch
 import rocks.claudiusthebot.watertracker.wear.WaterStore
-import kotlin.math.PI
-import kotlin.math.sin
 
 /**
- * Watch UI. Always renders the intake UI — no Health Connect gate on the
- * watch side, because Health Connect lives on the phone in our architecture.
+ * Root entry point. Wraps the screen in `AppScaffold` so TimeText is owned
+ * at the app level (single subscription) and ScreenScaffold owns the per-
+ * screen chrome (PositionIndicator, EdgeButton).
  */
 @Composable
 fun WearRoot(store: WaterStore) {
     MaterialTheme {
-        val today by store.today.collectAsState()
-        val conn by store.connection.collectAsState()
-        val scope = rememberCoroutineScope()
-
-        var quicks by remember { mutableStateOf(listOf(200, 300, 500)) }
-        LaunchedEffect(Unit) { quicks = store.currentQuicks() }
-
         Box(
-            modifier = Modifier
+            Modifier
                 .fillMaxSize()
                 .background(
                     Brush.radialGradient(
@@ -73,288 +62,227 @@ fun WearRoot(store: WaterStore) {
                     )
                 )
         ) {
-            MainWearScreen(
-                total = today.totalMl,
-                goal = today.goalMl,
-                entries = today.entries,
-                connection = conn,
-                quicks = quicks,
-                onAdd = { ml -> scope.launch { store.addIntake(ml) } },
-                onGoalStep = { delta ->
-                    scope.launch {
-                        store.setGoal((today.goalMl + delta).coerceIn(500, 6000))
-                    }
-                }
-            )
+            AppScaffold(
+                timeText = { TimeText() }
+            ) {
+                MainScreen(store)
+            }
         }
     }
 }
 
 @Composable
-private fun MainWearScreen(
-    total: Int,
-    goal: Int,
-    entries: List<rocks.claudiusthebot.watertracker.shared.WaterEntry>,
-    connection: WaterStore.ConnectionState,
-    quicks: List<Int>,
-    onAdd: (Int) -> Unit,
-    onGoalStep: (Int) -> Unit
-) {
-    val pct = if (goal > 0) (total.toFloat() / goal).coerceIn(0f, 1.5f) else 0f
-    val animPct by animateFloatAsState(
-        targetValue = pct,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "pct"
-    )
+private fun MainScreen(store: WaterStore) {
+    val today by store.today.collectAsState()
+    val conn by store.connection.collectAsState()
+
+    val scope = rememberCoroutineScope()
+    var quicks by remember { mutableStateOf(listOf(150, 250, 500)) }
+    LaunchedEffect(Unit) { quicks = store.currentQuicks() }
+
+    var customSheetOpen by remember { mutableStateOf(false) }
+    var celebrating by remember { mutableStateOf(false) }
+    var lastCelebrateDate by remember { mutableStateOf<String?>(null) }
+
+    // Fire celebration once when today first hits goal.
+    LaunchedEffect(today.totalMl, today.goalMl, today.date) {
+        val hit = today.goalMl > 0 && today.totalMl >= today.goalMl
+        if (hit && lastCelebrateDate != today.date) {
+            lastCelebrateDate = today.date
+            celebrating = true
+        }
+    }
+
+    // Last-used volume for the EdgeButton primary action.
+    val lastUsedMl = remember(quicks, today.entries) {
+        today.entries.firstOrNull()?.volumeMl ?: quicks.getOrNull(1) ?: 250
+    }
+
     val listState = rememberScalingLazyListState()
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
-    Box(Modifier.fillMaxSize()) {
-        EdgeProgressArc(fraction = animPct.coerceAtMost(1f))
+    val celebrateHaptic = rememberWearCelebrate()
+    LaunchedEffect(celebrating) {
+        if (celebrating) celebrateHaptic()
+    }
 
+    ScreenScaffold(
+        scrollState = listState,
+        contentPadding = PaddingValues(
+            top = 28.dp, bottom = 42.dp, start = 10.dp, end = 10.dp
+        ),
+        edgeButton = {
+            QuickLogEdgeButton(
+                ml = lastUsedMl,
+                onClick = {
+                    scope.launch { store.addIntake(lastUsedMl) }
+                }
+            )
+        }
+    ) { contentPadding ->
         ScalingLazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                top = 42.dp, bottom = 34.dp,
-                start = 10.dp, end = 10.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .rotaryScrollable(
+                    behavior = RotaryScrollableDefaults.behavior(listState),
+                    focusRequester = focusRequester
+                ),
+            contentPadding = contentPadding,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            item { SyncChip(connection) }
-            item { HeroWaterFill(total = total, goal = goal, pct = animPct) }
-            item { QuickAddRow(quicks = quicks, onPick = onAdd) }
-            item { MiniAddRow(onPick = onAdd) }
-            item { GoalStepperRow(goalMl = goal, onStep = onGoalStep) }
+            item {
+                HeroTile(totalMl = today.totalMl, goalMl = today.goalMl)
+            }
+            item { SyncStatusChip(conn) }
 
-            if (entries.isNotEmpty()) {
+            items(quicks.take(3)) { ml ->
+                DrinkChip(
+                    ml = ml,
+                    containerColor = colorForDrink(ml),
+                    contentColor = contentForDrink(ml),
+                    onPick = { scope.launch { store.addIntake(it) } },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            item {
+                CustomPill(onClick = { customSheetOpen = true })
+            }
+
+            item {
+                GoalAdjuster(
+                    goalMl = today.goalMl,
+                    onStep = { delta ->
+                        scope.launch {
+                            store.setGoal((today.goalMl + delta).coerceIn(500, 6000))
+                        }
+                    }
+                )
+            }
+
+            if (today.entries.isNotEmpty()) {
                 item {
                     Text(
                         "Today",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF6FB3E0)
+                        fontSize = 9.sp,
+                        color = Color(0xFF6FB3E0),
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
-                items(entries.take(5)) { e -> EntryRow(e) }
+                items(today.entries.take(5)) { entry ->
+                    EntryRow(entry)
+                }
             }
         }
-        RimVignette()
+
+        CelebrateOverlay(
+            visible = celebrating,
+            onDone = { celebrating = false }
+        )
+    }
+
+    if (customSheetOpen) {
+        CustomAmountDialog(
+            initialMl = lastUsedMl,
+            onDismiss = { customSheetOpen = false },
+            onConfirm = { ml ->
+                customSheetOpen = false
+                scope.launch { store.addIntake(ml) }
+            }
+        )
     }
 }
 
 @Composable
-private fun SyncChip(conn: WaterStore.ConnectionState) {
-    val (label, color) = when {
-        conn.pendingSync > 0 ->
-            "${conn.pendingSync} pending…" to Color(0xFFFFB74D)
-        conn.phoneReachable ->
-            "Synced with phone" to Color(0xFF81C784)
-        else ->
-            "Waiting for phone" to Color(0xFF90A4AE)
+private fun QuickLogEdgeButton(ml: Int, onClick: () -> Unit) {
+    val confirm = rememberWearConfirm()
+    EdgeButton(
+        onClick = { confirm(); onClick() },
+        buttonSize = EdgeButtonSize.Large
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                WaterIcons.Plus,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.size(4.dp))
+            Text(
+                "$ml ml",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
     }
+}
+
+@Composable
+private fun CustomPill(onClick: () -> Unit) {
+    val tick = rememberWearTick()
     Box(
         modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 2.dp)
             .background(
                 color = Color.White.copy(alpha = 0.08f),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(18.dp)
             )
-            .padding(horizontal = 10.dp, vertical = 3.dp)
+            .clickable { tick(); onClick() }
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        contentAlignment = Alignment.Center
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(6.dp)
-                    .background(color, shape = androidx.compose.foundation.shape.CircleShape)
+            Icon(
+                WaterIcons.Plus,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = Color(0xFF81D4FA)
             )
             Spacer(Modifier.size(6.dp))
             Text(
-                label,
-                color = Color.White.copy(alpha = 0.85f),
-                fontSize = 9.sp
+                "Custom amount…",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.White.copy(alpha = 0.9f)
             )
         }
     }
 }
 
 @Composable
-private fun EdgeProgressArc(fraction: Float) {
-    val grad = listOf(
-        Color(0xFF4FC3F7),
-        Color(0xFF29B6F6),
-        Color(0xFF0288D1),
-        Color(0xFF01579B)
-    )
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        val stroke = 10.dp.toPx()
-        val inset = 6.dp.toPx() + stroke / 2f
-        val sz = Size(size.width - inset * 2, size.height - inset * 2)
-        val origin = Offset(inset, inset)
-        drawArc(
-            color = Color.White.copy(alpha = 0.08f),
-            startAngle = -90f, sweepAngle = 360f, useCenter = false,
-            topLeft = origin, size = sz,
-            style = Stroke(width = stroke, cap = StrokeCap.Round)
-        )
-        drawArc(
-            brush = Brush.sweepGradient(
-                colors = grad,
-                center = Offset(origin.x + sz.width / 2, origin.y + sz.height / 2)
-            ),
-            startAngle = -90f,
-            sweepAngle = 360f * fraction,
-            useCenter = false,
-            topLeft = origin, size = sz,
-            style = Stroke(width = stroke, cap = StrokeCap.Round)
-        )
+private fun SyncStatusChip(conn: WaterStore.ConnectionState) {
+    val (label, dotColor) = when {
+        conn.pendingSync > 0 -> "${conn.pendingSync} pending" to Color(0xFFFFB74D)
+        conn.phoneReachable  -> "Synced"                      to Color(0xFF81C784)
+        else                 -> "Waiting for phone"           to Color(0xFF90A4AE)
     }
-}
-
-@Composable
-private fun HeroWaterFill(total: Int, goal: Int, pct: Float) {
-    var tick by remember { mutableStateOf(0L) }
-    LaunchedEffect(Unit) {
-        while (true) withFrameMillis { tick = it }
-    }
-
-    Box(
-        modifier = Modifier.size(112.dp).padding(4.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val radius = size.minDimension / 2f - 4.dp.toPx()
-            val center = Offset(size.width / 2f, size.height / 2f)
-
-            drawCircle(
-                color = Color(0xFF0A1A2A),
-                radius = radius,
-                center = center
-            )
-
-            val waterTop = size.height * (1f - pct.coerceAtMost(1f))
-            val amplitude = 3.dp.toPx()
-            val frequency = 2.5f * PI.toFloat() / size.width
-            val phase = (tick % 1800L) / 1800f * 2f * PI.toFloat()
-
-            val water = Path().apply {
-                moveTo(0f, waterTop)
-                var x = 0f
-                while (x <= size.width) {
-                    val y = waterTop + amplitude * sin(frequency * x + phase)
-                    lineTo(x, y)
-                    x += 2f
-                }
-                lineTo(size.width, size.height)
-                lineTo(0f, size.height)
-                close()
-            }
-
-            val clip = Path().apply {
-                addOval(
-                    Rect(center - Offset(radius, radius), Size(radius * 2, radius * 2))
-                )
-            }
-
-            clipPath(clip) {
-                drawPath(
-                    path = water,
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF4FC3F7),
-                            Color(0xFF0288D1),
-                            Color(0xFF01579B)
-                        )
-                    )
-                )
-            }
-
-            drawArc(
-                color = Color.White.copy(alpha = 0.1f),
-                startAngle = 200f, sweepAngle = 60f, useCenter = false,
-                topLeft = center - Offset(radius - 3.dp.toPx(), radius - 3.dp.toPx()),
-                size = Size((radius - 3.dp.toPx()) * 2, (radius - 3.dp.toPx()) * 2),
-                style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
-            )
-        }
-
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "$total",
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Text(
-                text = "of $goal ml",
-                fontSize = 10.sp,
-                color = Color(0xFFB3E5FC)
-            )
-        }
-    }
-}
-
-@Composable
-private fun QuickAddRow(quicks: List<Int>, onPick: (Int) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        quicks.take(3).forEach { ml ->
-            FilledTonalButton(
-                onClick = { onPick(ml) },
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("+$ml", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-            }
-        }
-    }
-}
-
-@Composable
-private fun MiniAddRow(onPick: (Int) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        FilledTonalButton(onClick = { onPick(50) }, modifier = Modifier.weight(1f)) {
-            Text("+50", fontSize = 11.sp)
-        }
-        FilledTonalButton(onClick = { onPick(100) }, modifier = Modifier.weight(1f)) {
-            Text("+100", fontSize = 11.sp)
-        }
-        FilledTonalButton(onClick = { onPick(150) }, modifier = Modifier.weight(1f)) {
-            Text("+150", fontSize = 11.sp)
-        }
-    }
-}
-
-@Composable
-private fun GoalStepperRow(goalMl: Int, onStep: (Int) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier
+            .background(
+                color = Color.White.copy(alpha = 0.08f),
+                shape = RoundedCornerShape(12.dp)
+            )
+            .padding(horizontal = 8.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        FilledTonalButton(onClick = { onStep(-250) }, modifier = Modifier.weight(1f)) {
-            Text("−", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-        }
-        Column(
-            modifier = Modifier.weight(1.5f),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("goal", fontSize = 8.sp, color = Color(0xFF6FB3E0))
-            Text(
-                "$goalMl",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White
-            )
-        }
-        FilledTonalButton(onClick = { onStep(250) }, modifier = Modifier.weight(1f)) {
-            Text("+", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-        }
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .background(dotColor, shape = androidx.compose.foundation.shape.CircleShape)
+        )
+        Spacer(Modifier.size(5.dp))
+        Text(
+            label,
+            fontSize = 9.sp,
+            color = Color.White.copy(alpha = 0.85f),
+            fontWeight = FontWeight.Medium
+        )
     }
 }
 
@@ -365,7 +293,7 @@ private fun EntryRow(entry: rocks.claudiusthebot.watertracker.shared.WaterEntry)
             .fillMaxWidth()
             .background(
                 color = Color.White.copy(alpha = 0.06f),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)
+                shape = RoundedCornerShape(14.dp)
             )
             .padding(horizontal = 10.dp, vertical = 5.dp)
     ) {
@@ -385,23 +313,17 @@ private fun EntryRow(entry: rocks.claudiusthebot.watertracker.shared.WaterEntry)
     }
 }
 
+/** Rotate drink chip container colors through primary / secondary / tertiary. */
 @Composable
-private fun RimVignette() {
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        val center = Offset(size.width / 2f, size.height / 2f)
-        val radius = size.minDimension / 2f
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    Color.Transparent,
-                    Color.Transparent,
-                    Color.Black.copy(alpha = 0.75f)
-                ),
-                center = center,
-                radius = radius
-            ),
-            radius = radius,
-            center = center
-        )
-    }
+private fun colorForDrink(ml: Int): Color = when {
+    ml <= 150 -> MaterialTheme.colorScheme.tertiaryContainer
+    ml <= 400 -> MaterialTheme.colorScheme.primaryContainer
+    else      -> MaterialTheme.colorScheme.secondaryContainer
+}
+
+@Composable
+private fun contentForDrink(ml: Int): Color = when {
+    ml <= 150 -> MaterialTheme.colorScheme.onTertiaryContainer
+    ml <= 400 -> MaterialTheme.colorScheme.onPrimaryContainer
+    else      -> MaterialTheme.colorScheme.onSecondaryContainer
 }
