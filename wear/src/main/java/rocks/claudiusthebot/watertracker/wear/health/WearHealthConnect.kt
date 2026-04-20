@@ -6,6 +6,7 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.HydrationRecord
+import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.health.connect.client.units.Volume
@@ -53,7 +54,8 @@ class WearHealthConnect(private val context: Context) {
             endTime = Instant.ofEpochMilli(timestampMs + 1),
             startZoneOffset = null,
             endZoneOffset = null,
-            volume = Volume.milliliters(volumeMl.toDouble())
+            volume = Volume.milliliters(volumeMl.toDouble()),
+            metadata = Metadata.manualEntry()
         )
         return try {
             c.insertRecords(listOf(record)).recordIdsList.firstOrNull()

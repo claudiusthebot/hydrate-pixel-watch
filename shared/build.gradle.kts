@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "rocks.claudiusthebot.watertracker.shared"
-    compileSdk = 35
+    compileSdk = 36
     defaultConfig {
         minSdk = 26
     }
@@ -18,5 +18,5 @@ android {
 }
 
 dependencies {
-    api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+    api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 }

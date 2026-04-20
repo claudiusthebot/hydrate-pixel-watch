@@ -1,19 +1,20 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
     namespace = "rocks.claudiusthebot.watertracker.wear"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "rocks.claudiusthebot.watertracker"
-        minSdk = 30
-        targetSdk = 34
-        versionCode = 2
-        versionName = "0.2.0"
+        minSdk = 34  // Wear OS 5+ only (Pixel Watch 3 / Wear OS 6 target)
+        targetSdk = 36
+        versionCode = 3
+        versionName = "0.3.0"
     }
 
     buildTypes {
@@ -31,7 +32,6 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
-    composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
     packaging {
         resources { excludes += setOf("/META-INF/{AL2.0,LGPL2.1}", "META-INF/INDEX.LIST") }
     }
@@ -40,35 +40,37 @@ android {
 dependencies {
     implementation(project(":shared"))
 
-    // Compose for Wear
-    implementation("androidx.compose.ui:ui:1.7.3")
-    implementation("androidx.compose.ui:ui-tooling-preview:1.7.3")
-    implementation("androidx.compose.foundation:foundation:1.7.3")
-    implementation("androidx.wear.compose:compose-material3:1.0.0-alpha27")
-    implementation("androidx.wear.compose:compose-foundation:1.4.0")
-    implementation("androidx.wear.compose:compose-navigation:1.4.0")
+    // Compose for Wear — use BOM for ui/foundation alignment
+    implementation(platform("androidx.compose:compose-bom:2025.01.01"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.foundation:foundation")
+
+    // Wear Compose Material 3 (Material 3 Expressive)
+    implementation("androidx.wear.compose:compose-material3:1.0.0-alpha33")
+    implementation("androidx.wear.compose:compose-foundation:1.4.1")
+    implementation("androidx.wear.compose:compose-navigation:1.4.1")
     implementation("androidx.wear:wear:1.3.0")
+    implementation("androidx.wear:wear-tooling-preview:1.0.0")
 
-    implementation("androidx.activity:activity-compose:1.9.2")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
-    implementation("androidx.lifecycle:lifecycle-service:2.8.6")
+    implementation("androidx.activity:activity-compose:1.9.3")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-service:2.8.7")
 
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
+
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
-    // Health Connect on Wear
-    implementation("androidx.health.connect:connect-client:1.1.0-alpha09")
+    // Health Connect
+    implementation("androidx.health.connect:connect-client:1.1.0-rc02")
 
     // Wearable Data Layer
-    implementation("com.google.android.gms:play-services-wearable:18.2.0")
+    implementation("com.google.android.gms:play-services-wearable:19.0.0")
 
-    // Ongoing activity — watch-face progress chip
+    // Ongoing activity on watch face
     implementation("androidx.wear:wear-ongoing:1.0.0")
 
-    // Rotary input support
-    implementation("androidx.wear.compose:compose-material:1.4.0")
-
-    debugImplementation("androidx.compose.ui:ui-tooling:1.7.3")
+    debugImplementation("androidx.compose.ui:ui-tooling")
 }
