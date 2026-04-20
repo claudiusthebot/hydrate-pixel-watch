@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -49,6 +50,10 @@ fun CustomAmountSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var amount by remember { mutableStateOf(250f) }
+    val tick = rememberSegmentTick()
+    val confirm = rememberConfirmTick()
+    // 19 steps across 50..1000 in 50-ml chunks → tick per 50ml.
+    var lastStep by remember { mutableIntStateOf((amount / 50f).toInt()) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -87,7 +92,15 @@ fun CustomAmountSheet(
 
             Slider(
                 value = amount,
-                onValueChange = { amount = it },
+                onValueChange = { new ->
+                    val step = (new / 50f).toInt()
+                    if (step != lastStep) {
+                        lastStep = step
+                        tick()
+                    }
+                    amount = new
+                },
+                onValueChangeFinished = { confirm() },
                 valueRange = 50f..1000f,
                 steps = 18,
                 modifier = Modifier.fillMaxWidth()

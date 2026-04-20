@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -41,6 +42,23 @@ fun SettingsScreen(vm: WaterViewModel) {
 
     var goalFloat by remember(settings) { mutableStateOf(settings.dailyGoalMl.toFloat()) }
     LaunchedEffect(settings.dailyGoalMl) { goalFloat = settings.dailyGoalMl.toFloat() }
+
+    val tick = rememberSegmentTick()
+    val confirm = rememberConfirmTick()
+
+    // Track the last "step" (100ml chunks for goal, hour for quiet hours,
+    // 30-min chunks for interval) so we only fire the tick haptic on step
+    // boundaries, not every touch frame.
+    var lastGoalStep by remember(goalFloat) { mutableIntStateOf((goalFloat / 100f).toInt()) }
+    var lastIntervalStep by remember(reminders.intervalMinutes) {
+        mutableIntStateOf(reminders.intervalMinutes / 30)
+    }
+    var lastQuietStartHour by remember(reminders.quietStart) {
+        mutableIntStateOf(reminders.quietStart)
+    }
+    var lastQuietEndHour by remember(reminders.quietEnd) {
+        mutableIntStateOf(reminders.quietEnd)
+    }
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -70,8 +88,18 @@ fun SettingsScreen(vm: WaterViewModel) {
                     Spacer(Modifier.height(8.dp))
                     Slider(
                         value = goalFloat,
-                        onValueChange = { goalFloat = it },
-                        onValueChangeFinished = { vm.setGoal(goalFloat.toInt()) },
+                        onValueChange = { new ->
+                            val step = (new / 100f).toInt()
+                            if (step != lastGoalStep) {
+                                lastGoalStep = step
+                                tick()
+                            }
+                            goalFloat = new
+                        },
+                        onValueChangeFinished = {
+                            confirm()
+                            vm.setGoal(goalFloat.toInt())
+                        },
                         valueRange = 1000f..4000f,
                         steps = 29
                     )
@@ -121,9 +149,15 @@ fun SettingsScreen(vm: WaterViewModel) {
                         )
                         Slider(
                             value = reminders.intervalMinutes.toFloat(),
-                            onValueChange = {
-                                vm.setReminderInterval(it.toInt())
+                            onValueChange = { new ->
+                                val step = new.toInt() / 30
+                                if (step != lastIntervalStep) {
+                                    lastIntervalStep = step
+                                    tick()
+                                }
+                                vm.setReminderInterval(new.toInt())
                             },
+                            onValueChangeFinished = { confirm() },
                             valueRange = 30f..240f,
                             steps = 6
                         )
@@ -140,7 +174,15 @@ fun SettingsScreen(vm: WaterViewModel) {
                                 style = MaterialTheme.typography.labelLarge)
                             Slider(
                                 value = reminders.quietStart.toFloat(),
-                                onValueChange = { vm.setQuietStart(it.toInt()) },
+                                onValueChange = { new ->
+                                    val h = new.toInt()
+                                    if (h != lastQuietStartHour) {
+                                        lastQuietStartHour = h
+                                        tick()
+                                    }
+                                    vm.setQuietStart(h)
+                                },
+                                onValueChangeFinished = { confirm() },
                                 valueRange = 0f..23f,
                                 steps = 22
                             )
@@ -150,7 +192,15 @@ fun SettingsScreen(vm: WaterViewModel) {
                                 style = MaterialTheme.typography.labelLarge)
                             Slider(
                                 value = reminders.quietEnd.toFloat(),
-                                onValueChange = { vm.setQuietEnd(it.toInt()) },
+                                onValueChange = { new ->
+                                    val h = new.toInt()
+                                    if (h != lastQuietEndHour) {
+                                        lastQuietEndHour = h
+                                        tick()
+                                    }
+                                    vm.setQuietEnd(h)
+                                },
+                                onValueChangeFinished = { confirm() },
                                 valueRange = 0f..23f,
                                 steps = 22
                             )
