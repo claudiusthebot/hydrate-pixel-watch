@@ -117,10 +117,20 @@ class HealthConnectManager(private val context: Context) {
 
     /** Read hydration records for the given local date. */
     suspend fun readForDate(date: LocalDate): List<WaterEntry> {
-        val c = client ?: return emptyList()
         val zone = ZoneId.systemDefault()
-        val start = date.atStartOfDay(zone).toInstant()
-        val end = date.plusDays(1).atStartOfDay(zone).toInstant()
+        return readRange(
+            start = date.atStartOfDay(zone).toInstant(),
+            end = date.plusDays(1).atStartOfDay(zone).toInstant()
+        )
+    }
+
+    /**
+     * Read hydration records over an arbitrary instant range — one HC IPC.
+     * Used by the history screen to fetch a month of data in a single
+     * roundtrip instead of N per-day calls.
+     */
+    suspend fun readRange(start: Instant, end: Instant): List<WaterEntry> {
+        val c = client ?: return emptyList()
         val req = ReadRecordsRequest(
             recordType = HydrationRecord::class,
             timeRangeFilter = TimeRangeFilter.between(start, end)

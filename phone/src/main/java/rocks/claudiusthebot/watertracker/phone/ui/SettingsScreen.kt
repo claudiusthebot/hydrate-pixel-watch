@@ -1,6 +1,16 @@
 package rocks.claudiusthebot.watertracker.phone.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -9,12 +19,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -30,13 +50,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import rocks.claudiusthebot.watertracker.phone.WaterViewModel
 
 @Composable
-fun SettingsScreen(vm: WaterViewModel) {
+fun SettingsScreen(
+    vm: WaterViewModel,
+    onOpenDiagnostics: () -> Unit
+) {
     val settings by vm.settings.collectAsState()
     val reminders by vm.reminders.collectAsState()
 
@@ -45,10 +70,10 @@ fun SettingsScreen(vm: WaterViewModel) {
 
     val tick = rememberSegmentTick()
     val confirm = rememberConfirmTick()
+    val toggleOn = rememberToggleOnHaptic()
+    val toggleOff = rememberToggleOffHaptic()
+    val lightTick = rememberLightTick()
 
-    // Track the last "step" (100ml chunks for goal, hour for quiet hours,
-    // 30-min chunks for interval) so we only fire the tick haptic on step
-    // boundaries, not every touch frame.
     var lastGoalStep by remember(goalFloat) { mutableIntStateOf((goalFloat / 100f).toInt()) }
     var lastIntervalStep by remember(reminders.intervalMinutes) {
         mutableIntStateOf(reminders.intervalMinutes / 30)
@@ -60,19 +85,29 @@ fun SettingsScreen(vm: WaterViewModel) {
         mutableIntStateOf(reminders.quietEnd)
     }
 
+    val navInset = LocalFloatingNavInset.current
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+        contentPadding = PaddingValues(
+            start = 16.dp, end = 16.dp,
+            top = 14.dp,
+            bottom = 14.dp + navInset
+        ),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        item { SectionHeader("Hydration") }
+
         item {
-            ElevatedCard(
+            Card(
                 shape = MaterialTheme.shapes.extraLarge,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(22.dp)) {
-                    Text("Daily goal", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(6.dp))
+                    SettingHeader(
+                        icon = Icons.Rounded.WaterDrop,
+                        title = "Daily goal"
+                    )
+                    Spacer(Modifier.height(10.dp))
                     Text(
                         "${goalFloat.toInt()} ml",
                         style = MaterialTheme.typography.displaySmall,
@@ -113,116 +148,276 @@ fun SettingsScreen(vm: WaterViewModel) {
             )
         }
 
+        item { SectionHeader("Reminders") }
+
         item {
-            ElevatedCard(
+            Card(
                 shape = MaterialTheme.shapes.extraLarge,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(22.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Reminders",
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.weight(1f))
+                        SettingHeader(
+                            icon = Icons.Rounded.NotificationsActive,
+                            title = "Periodic nudges",
+                            subtitle = "Quick-log notifications through the day",
+                            modifier = Modifier.weight(1f)
+                        )
                         Switch(
                             checked = reminders.enabled,
-                            onCheckedChange = { vm.setReminderEnabled(it) }
+                            onCheckedChange = {
+                                if (it) toggleOn() else toggleOff()
+                                vm.setReminderEnabled(it)
+                            }
                         )
                     }
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        "Periodic nudges to drink water with a quick-log action.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
 
-                    if (reminders.enabled) {
-                        Spacer(Modifier.height(18.dp))
-                        Text(
-                            "Every ${reminders.intervalMinutes} min",
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        Slider(
-                            value = reminders.intervalMinutes.toFloat(),
-                            onValueChange = { new ->
-                                val step = new.toInt() / 30
-                                if (step != lastIntervalStep) {
-                                    lastIntervalStep = step
-                                    tick()
-                                }
-                                vm.setReminderInterval(new.toInt())
-                            },
-                            onValueChangeFinished = { confirm() },
-                            valueRange = 30f..240f,
-                            steps = 6
-                        )
-
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            "Quiet hours: " +
-                                "${reminders.quietStart.toString().padStart(2, '0')}:00 – " +
-                                "${reminders.quietEnd.toString().padStart(2, '0')}:00",
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Start", modifier = Modifier.width(48.dp),
-                                style = MaterialTheme.typography.labelLarge)
+                    AnimatedVisibility(
+                        visible = reminders.enabled,
+                        enter = expandVertically(
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioLowBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            )
+                        ) + fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)),
+                        exit = shrinkVertically(
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                stiffness = Spring.StiffnessMedium
+                            )
+                        ) + fadeOut()
+                    ) {
+                        Column {
+                            Spacer(Modifier.height(20.dp))
+                            Text(
+                                "Every ${reminders.intervalMinutes} min",
+                                style = MaterialTheme.typography.titleSmall
+                            )
                             Slider(
-                                value = reminders.quietStart.toFloat(),
+                                value = reminders.intervalMinutes.toFloat(),
                                 onValueChange = { new ->
-                                    val h = new.toInt()
-                                    if (h != lastQuietStartHour) {
-                                        lastQuietStartHour = h
+                                    val step = new.toInt() / 30
+                                    if (step != lastIntervalStep) {
+                                        lastIntervalStep = step
                                         tick()
                                     }
-                                    vm.setQuietStart(h)
+                                    vm.setReminderInterval(new.toInt())
                                 },
                                 onValueChangeFinished = { confirm() },
-                                valueRange = 0f..23f,
-                                steps = 22
+                                valueRange = 30f..240f,
+                                steps = 6
                             )
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("End", modifier = Modifier.width(48.dp),
-                                style = MaterialTheme.typography.labelLarge)
-                            Slider(
-                                value = reminders.quietEnd.toFloat(),
-                                onValueChange = { new ->
-                                    val h = new.toInt()
-                                    if (h != lastQuietEndHour) {
-                                        lastQuietEndHour = h
-                                        tick()
-                                    }
-                                    vm.setQuietEnd(h)
-                                },
-                                onValueChangeFinished = { confirm() },
-                                valueRange = 0f..23f,
-                                steps = 22
+
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "Quiet hours: " +
+                                    "${reminders.quietStart.toString().padStart(2, '0')}:00 – " +
+                                    "${reminders.quietEnd.toString().padStart(2, '0')}:00",
+                                style = MaterialTheme.typography.titleSmall
                             )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Start", modifier = Modifier.width(48.dp),
+                                    style = MaterialTheme.typography.labelLarge)
+                                Slider(
+                                    value = reminders.quietStart.toFloat(),
+                                    onValueChange = { new ->
+                                        val h = new.toInt()
+                                        if (h != lastQuietStartHour) {
+                                            lastQuietStartHour = h
+                                            tick()
+                                        }
+                                        vm.setQuietStart(h)
+                                    },
+                                    onValueChangeFinished = { confirm() },
+                                    valueRange = 0f..23f,
+                                    steps = 22
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("End", modifier = Modifier.width(48.dp),
+                                    style = MaterialTheme.typography.labelLarge)
+                                Slider(
+                                    value = reminders.quietEnd.toFloat(),
+                                    onValueChange = { new ->
+                                        val h = new.toInt()
+                                        if (h != lastQuietEndHour) {
+                                            lastQuietEndHour = h
+                                            tick()
+                                        }
+                                        vm.setQuietEnd(h)
+                                    },
+                                    onValueChangeFinished = { confirm() },
+                                    valueRange = 0f..23f,
+                                    steps = 22
+                                )
+                            }
                         }
                     }
                 }
             }
         }
 
+        item { SectionHeader("More") }
+
         item {
-            Card(
-                shape = MaterialTheme.shapes.extraLarge,
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+            NavListRow(
+                icon = Icons.Rounded.Tune,
+                title = "Diagnostics",
+                subtitle = "Health Connect & watch sync status",
+                onClick = { lightTick(); onOpenDiagnostics() }
+            )
+        }
+
+        item {
+            AboutCard()
+        }
+    }
+}
+
+@Composable
+private fun SectionHeader(text: String) {
+    Text(
+        text = text.uppercase(),
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 8.dp, top = 6.dp, bottom = 0.dp)
+    )
+}
+
+@Composable
+private fun SettingHeader(
+    icon: ImageVector,
+    title: String,
+    subtitle: String? = null,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Spacer(Modifier.width(14.dp))
+        Column {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun NavListRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.secondaryContainer),
+                contentAlignment = Alignment.Center
             ) {
-                Column(Modifier.padding(22.dp)) {
-                    Text("About",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer)
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        "Hydrate logs water intake to Health Connect on both phone and watch, so any device with Health Connect sees the same records.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                }
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun AboutCard() {
+    Card(
+        shape = MaterialTheme.shapes.extraLarge,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Row(
+            Modifier.padding(22.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Icon(
+                Icons.Rounded.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text(
+                    "About",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Hydrate logs water intake to Health Connect on both phone and watch, so any device with Health Connect sees the same records.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
             }
         }
     }
@@ -234,20 +429,24 @@ private fun QuickAddEditor(current: List<Int>, onSave: (List<Int>) -> Unit) {
         (current + listOf(0, 0, 0, 0)).take(4).toMutableList()
     }
     val values = remember { mutableStateOf(padded.map { it.toString() }) }
+    val confirm = rememberConfirmTick()
 
-    ElevatedCard(
+    Card(
         shape = MaterialTheme.shapes.extraLarge,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(22.dp)) {
-            Text("Quick adds", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(4.dp))
+            SettingHeader(
+                icon = Icons.Rounded.Bolt,
+                title = "Quick adds"
+            )
+            Spacer(Modifier.height(6.dp))
             Text(
                 "The four buttons on the Today screen, in millilitres.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -269,16 +468,18 @@ private fun QuickAddEditor(current: List<Int>, onSave: (List<Int>) -> Unit) {
                     )
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
             Button(
                 onClick = {
                     val nums = values.value.mapNotNull { it.toIntOrNull() }
                         .filter { it > 0 }
-                    if (nums.isNotEmpty()) onSave(nums)
+                    if (nums.isNotEmpty()) {
+                        confirm()
+                        onSave(nums)
+                    }
                 },
-                shape = MaterialTheme.shapes.medium
+                shape = MaterialTheme.shapes.large
             ) { Text("Save") }
         }
     }
 }
-

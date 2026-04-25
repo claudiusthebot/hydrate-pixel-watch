@@ -51,6 +51,15 @@ class WaterViewModel(app: Application) : AndroidViewModel(app) {
     private val _lastHcEvent = MutableStateFlow<String?>(null)
     val lastHcEvent: StateFlow<String?> = _lastHcEvent.asStateFlow()
 
+    // Cached history for the History tab. First open kicks off a single
+    // bulk Health Connect read; subsequent opens render instantly from
+    // this flow while a quiet refresh runs in the background.
+    private val _historyDays = MutableStateFlow<List<DaySummary>>(emptyList())
+    val historyDays: StateFlow<List<DaySummary>> = _historyDays.asStateFlow()
+    private val _historyLoading = MutableStateFlow(false)
+    val historyLoading: StateFlow<Boolean> = _historyLoading.asStateFlow()
+    private var historyLoadedOnce = false
+
     init {
         refresh()
     }
@@ -96,6 +105,7 @@ class WaterViewModel(app: Application) : AndroidViewModel(app) {
                 wearSync.pushEntriesSync(t.entries)
                 maybeCelebrate(t)
                 _lastHcEvent.value = "wrote $ml ml ok"
+                if (historyLoadedOnce) refreshHistory()
             } catch (e: Exception) {
                 _lastHcEvent.value = "write failed: ${e.message}"
             }
@@ -110,6 +120,7 @@ class WaterViewModel(app: Application) : AndroidViewModel(app) {
                 wearSync.pushTotalUpdate(t.totalMl, t.goalMl)
                 wearSync.pushEntriesSync(t.entries)
                 _lastHcEvent.value = "deleted ok"
+                if (historyLoadedOnce) refreshHistory()
             } catch (e: Exception) {
                 _lastHcEvent.value = "delete failed: ${e.message}"
             }
@@ -122,6 +133,7 @@ class WaterViewModel(app: Application) : AndroidViewModel(app) {
             repo.refreshToday()
             val t = repo.today.value
             wearSync.pushTotalUpdate(t.totalMl, t.goalMl)
+            if (historyLoadedOnce) refreshHistory()
         }
     }
 
@@ -157,6 +169,27 @@ class WaterViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     suspend fun loadDate(date: LocalDate): DaySummary = repo.readDate(date)
+
+    /**
+     * Trigger a history refresh. Shows the spinner only on the first
+     * load; subsequent calls update the cache silently in the
+     * background so the UI keeps the previous data on screen and
+     * avoids the "everything blank for a beat" flash.
+     */
+    fun refreshHistory(daysBack: Int = 30) {
+        viewModelScope.launch {
+            val showSpinner = !historyLoadedOnce
+            if (showSpinner) _historyLoading.value = true
+            try {
+                _historyDays.value = repo.loadHistory(daysBack)
+                historyLoadedOnce = true
+            } catch (e: Exception) {
+                _lastHcEvent.value = "history read failed: ${e.message}"
+            } finally {
+                if (showSpinner) _historyLoading.value = false
+            }
+        }
+    }
 
     private fun maybeCelebrate(day: DaySummary) {
         if (day.goalMl <= 0) return

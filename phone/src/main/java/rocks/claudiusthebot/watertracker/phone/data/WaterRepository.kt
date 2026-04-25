@@ -16,7 +16,9 @@ import rocks.claudiusthebot.watertracker.phone.health.HealthConnectManager
 import rocks.claudiusthebot.watertracker.shared.DaySummary
 import rocks.claudiusthebot.watertracker.shared.UserSettings
 import rocks.claudiusthebot.watertracker.shared.WaterEntry
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.util.UUID
 
 private val Context.settingsStore by preferencesDataStore(name = "water_settings")
@@ -108,6 +110,38 @@ class WaterRepository(
             goalMl = goal,
             entries = entries
         )
+    }
+
+    /**
+     * Bulk-load the last `daysBack` days of history in a single Health
+     * Connect IPC. Returns days newest-first.
+     *
+     * Replaces N sequential `readDate` calls — for daysBack=30 that's
+     * one process-boundary read instead of thirty.
+     */
+    suspend fun loadHistory(daysBack: Int): List<DaySummary> {
+        if (daysBack <= 0) return emptyList()
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now()
+        val rangeStart = today.minusDays((daysBack - 1).toLong())
+            .atStartOfDay(zone).toInstant()
+        val rangeEnd = today.plusDays(1).atStartOfDay(zone).toInstant()
+        val all = hc.readRange(rangeStart, rangeEnd)
+        val byLocalDate: Map<String, List<WaterEntry>> = all.groupBy { e ->
+            Instant.ofEpochMilli(e.timestampMs).atZone(zone).toLocalDate().toString()
+        }
+        val goal = currentSettings().dailyGoalMl
+        return (0 until daysBack).map { offset ->
+            val date = today.minusDays(offset.toLong()).toString()
+            val entries = (byLocalDate[date] ?: emptyList())
+                .sortedByDescending { it.timestampMs }
+            DaySummary(
+                date = date,
+                totalMl = entries.sumOf { it.volumeMl },
+                goalMl = goal,
+                entries = entries
+            )
+        }
     }
 
     private fun today(): String = LocalDate.now().toString()

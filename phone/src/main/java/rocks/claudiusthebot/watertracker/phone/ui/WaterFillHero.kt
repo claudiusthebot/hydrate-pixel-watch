@@ -2,18 +2,30 @@ package rocks.claudiusthebot.watertracker.phone.ui
 
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,30 +36,31 @@ import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import rocks.claudiusthebot.watertracker.phone.ui.shapes.RoundedStarShape
 import kotlin.math.PI
 import kotlin.math.sin
 
 /**
- * Phone-side hero card. Rendered with:
- *   • a dark gradient background,
- *   • a progress ring,
- *   • an animated wavy water fill inside the ring.
- * The whole thing animates smoothly via [animateFloatAsState] when the
- * daily total changes.
+ * Hero card for the Today screen.
+ *
+ * Layout: a horizontal card with bold typography on the left (today's
+ * total + a M3 Expressive `LinearWavyProgressIndicator`) and a fluid
+ * water-fill blob on the right wrapped in a `RoundedStarShape` cookie.
+ *
+ * All colors come from the M3 theme (`primaryContainer` / `primary` /
+ * `onPrimaryContainer`) so it adapts to dynamic-color wallpapers and
+ * dark mode without the hardcoded blues the previous version used.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun WaterFillHero(
     currentMl: Int,
@@ -63,201 +76,204 @@ fun WaterFillHero(
         ),
         label = "pct"
     )
+    val displayedMl by animateIntAsState(
+        targetValue = currentMl,
+        animationSpec = tween(durationMillis = 480),
+        label = "displayedMl"
+    )
 
-    var tick by remember { mutableStateOf(0L) }
-    LaunchedEffect(Unit) {
-        while (true) withFrameMillis { tick = it }
-    }
+    val pctInt = (pct * 100).toInt()
+    val remaining = (goalMl - currentMl).coerceAtLeast(0)
+    val hit = currentMl >= goalMl && goalMl > 0
 
-    Surface(
-        modifier = modifier.fillMaxWidth().height(300.dp).clip(RoundedCornerShape(36.dp)),
-        color = Color.Transparent
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        )
     ) {
-        Box(
+        Row(
             Modifier
                 .fillMaxWidth()
-                .height(300.dp)
+                .padding(horizontal = 22.dp, vertical = 22.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Soft gradient background
-            Canvas(Modifier.fillMaxWidth().height(300.dp)) {
-                drawRoundRect(
-                    brush = Brush.verticalGradient(
-                        0f to Color(0xFF0B2034),
-                        0.55f to Color(0xFF0F3954),
-                        1f to Color(0xFF104D72)
-                    ),
-                    cornerRadius = CornerRadius(36.dp.toPx())
+            // ── Left column: copy + wavy progress ─────────────────────
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = if (hit) "GOAL HIT" else "TODAY",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
+                )
+
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = "$displayedMl",
+                        style = MaterialTheme.typography.displayLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "ml",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+
+                Text(
+                    text = "of $goalMl ml goal",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
+                )
+
+                Spacer(Modifier.height(2.dp))
+
+                LinearWavyProgressIndicator(
+                    progress = { pct.coerceAtMost(1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(10.dp)
+                        .clip(CircleShape),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.18f)
+                )
+
+                Text(
+                    text = if (hit) "$pctInt% · keep going!"
+                        else "$pctInt% · $remaining ml to go",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
                 )
             }
 
-            // Progress ring + water-fill disc
-            Box(
-                Modifier
-                    .align(Alignment.Center)
-                    .padding(16.dp)
-                    .fillMaxWidth()
-            ) {
-                Canvas(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .fillMaxWidth()
-                        .height(220.dp)
-                ) {
-                    val w = size.width
-                    val h = size.height
-                    val radius = (minOf(w, h) / 2f) - 8.dp.toPx()
-                    val center = Offset(w / 2f, h / 2f)
-                    val stroke = 12.dp.toPx()
+            Spacer(Modifier.width(18.dp))
 
-                    // Track
-                    drawArc(
-                        color = Color.White.copy(alpha = 0.12f),
-                        startAngle = -90f, sweepAngle = 360f, useCenter = false,
-                        topLeft = Offset(center.x - radius, center.y - radius),
-                        size = Size(radius * 2, radius * 2),
-                        style = Stroke(width = stroke, cap = StrokeCap.Round)
-                    )
-                    // Progress
-                    drawArc(
-                        brush = Brush.sweepGradient(
-                            listOf(
-                                Color(0xFF81D4FA),
-                                Color(0xFF29B6F6),
-                                Color(0xFF0288D1),
-                                Color(0xFF81D4FA)
-                            ),
-                            center = center
-                        ),
-                        startAngle = -90f,
-                        sweepAngle = 360f * pct.coerceAtMost(1f),
-                        useCenter = false,
-                        topLeft = Offset(center.x - radius, center.y - radius),
-                        size = Size(radius * 2, radius * 2),
-                        style = Stroke(width = stroke, cap = StrokeCap.Round)
-                    )
+            // ── Right side: fluid-fill cookie ────────────────────────
+            FluidFillCookie(
+                pct = pct,
+                modifier = Modifier.size(132.dp)
+            )
+        }
+    }
+}
 
-                    // Inner water-fill disc
-                    val inner = radius - stroke - 4.dp.toPx()
-                    val discClip = Path().apply {
-                        addOval(Rect(center - Offset(inner, inner), Size(inner * 2, inner * 2)))
-                    }
-                    clipPath(discClip) {
-                        drawCircle(
-                            color = Color(0xFF072030),
-                            radius = inner,
-                            center = center
-                        )
+/**
+ * The fluid water disc, themed and shaped like an M3-Expressive cookie.
+ * Two phase-offset sine waves rise from the bottom, with the occasional
+ * bubble on top.
+ */
+@Composable
+private fun FluidFillCookie(
+    pct: Float,
+    modifier: Modifier = Modifier
+) {
+    var tick by remember { mutableStateOf(0L) }
+    LaunchedEffect(Unit) { while (true) withFrameMillis { tick = it } }
 
-                        val waterTop = center.y + inner - inner * 2 * pct.coerceAtMost(1f)
-                        val amplitude = 6.dp.toPx()
-                        val freq = 2f * PI.toFloat() / (inner * 2f)
-                        val phase = (tick % 2400L) / 2400f * 2f * PI.toFloat()
+    val shape = remember { RoundedStarShape(sides = 8, curve = 0.10) }
+    val containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    val waterTopColor = MaterialTheme.colorScheme.primary
+    val waterBottomColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+    val waveTrim = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+    val highlightColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f)
 
-                        val water = Path().apply {
-                            moveTo(center.x - inner, waterTop)
-                            var x = center.x - inner
-                            while (x <= center.x + inner) {
-                                val y = waterTop + amplitude * sin(freq * x + phase)
-                                lineTo(x, y)
-                                x += 3f
-                            }
-                            lineTo(center.x + inner, center.y + inner)
-                            lineTo(center.x - inner, center.y + inner)
-                            close()
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(containerColor),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            val capped = pct.coerceIn(0f, 1f)
+
+            val waterTop = h - h * capped
+            val amplitude = 5.dp.toPx()
+            val freq = 2f * PI.toFloat() / w
+            val phase1 = (tick % 2400L) / 2400f * 2f * PI.toFloat()
+            val phase2 = (tick % 4000L) / 4000f * 2f * PI.toFloat()
+
+            val clip = Path().apply { addRect(Rect(Offset.Zero, Size(w, h))) }
+            clipPath(clip) {
+                if (capped > 0f) {
+                    val frontWave = Path().apply {
+                        moveTo(0f, waterTop)
+                        var x = 0f
+                        while (x <= w) {
+                            val y = waterTop + amplitude * sin(freq * x + phase1)
+                            lineTo(x, y); x += 3f
                         }
-                        drawPath(
-                            water,
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color(0xFF4FC3F7),
-                                    Color(0xFF0288D1),
-                                    Color(0xFF01579B)
+                        lineTo(w, h); lineTo(0f, h); close()
+                    }
+                    drawPath(
+                        frontWave,
+                        brush = Brush.verticalGradient(
+                            colors = listOf(waterTopColor, waterBottomColor),
+                            startY = waterTop - amplitude,
+                            endY = h
+                        )
+                    )
+
+                    // Slower secondary wave for parallax / depth.
+                    val backWave = Path().apply {
+                        val backTop = waterTop + amplitude * 1.1f
+                        moveTo(0f, backTop)
+                        var x = 0f
+                        while (x <= w) {
+                            val y = backTop + amplitude * 0.75f * sin(freq * 1.4f * x + phase2)
+                            lineTo(x, y); x += 3f
+                        }
+                        lineTo(w, h); lineTo(0f, h); close()
+                    }
+                    drawPath(backWave, color = waveTrim)
+
+                    // Rising bubbles
+                    val bubbles = 5
+                    for (i in 0 until bubbles) {
+                        val seed = i * 91.7f
+                        val phaseB = ((tick / 20L + (seed * 7L).toLong()) % 4000L) / 4000f
+                        val bx = ((seed * 53f) % w)
+                        val by = h - phaseB * h
+                        if (by > waterTop) {
+                            drawCircle(
+                                color = highlightColor.copy(
+                                    alpha = (1f - phaseB).coerceIn(0f, 0.55f)
                                 ),
-                                startY = waterTop - amplitude,
-                                endY = center.y + inner
+                                radius = (1.6f + (seed % 1.4f)).dp.toPx(),
+                                center = Offset(bx, by)
                             )
-                        )
-
-                        // second, slower wave for parallax
-                        val waterTop2 = waterTop + amplitude * 1.2f
-                        val phase2 = (tick % 4000L) / 4000f * 2f * PI.toFloat()
-                        val water2 = Path().apply {
-                            moveTo(center.x - inner, waterTop2)
-                            var x = center.x - inner
-                            while (x <= center.x + inner) {
-                                val y = waterTop2 + amplitude * 0.8f * sin(freq * 1.3f * x + phase2)
-                                lineTo(x, y)
-                                x += 3f
-                            }
-                            lineTo(center.x + inner, center.y + inner)
-                            lineTo(center.x - inner, center.y + inner)
-                            close()
-                        }
-                        drawPath(
-                            water2,
-                            color = Color(0xFF29B6F6).copy(alpha = 0.45f)
-                        )
-
-                        // bubbles
-                        val bubbles = 5
-                        for (i in 0 until bubbles) {
-                            val seed = i * 91.7f
-                            val phaseB = ((tick / 20L + (seed * 7L).toLong()) % 4000L) / 4000f
-                            val bx = center.x - inner + ((seed * 53f) % (inner * 2f))
-                            val by = center.y + inner - phaseB * inner * 2f
-                            if (by > waterTop) {
-                                drawCircle(
-                                    color = Color.White.copy(
-                                        alpha = (1f - phaseB).coerceIn(0f, 0.55f)
-                                    ),
-                                    radius = (2.5f + seed % 1.5f).dp.toPx(),
-                                    center = Offset(bx, by)
-                                )
-                            }
                         }
                     }
-
-                    // specular highlight on outer ring
-                    drawArc(
-                        color = Color.White.copy(alpha = 0.25f),
-                        startAngle = 215f,
-                        sweepAngle = 40f,
-                        useCenter = false,
-                        topLeft = Offset(center.x - radius, center.y - radius),
-                        size = Size(radius * 2, radius * 2),
-                        style = Stroke(width = stroke / 2.2f, cap = StrokeCap.Round)
-                    )
-                }
-
-                Column(
-                    Modifier.align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        "Today",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = Color(0xFFB3E5FC)
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = "$currentMl",
-                        fontSize = 64.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        text = "of $goalMl ml",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color(0xFFB3E5FC)
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = "${(pct * 100).toInt()}%",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = Color.White.copy(alpha = 0.75f)
-                    )
                 }
             }
         }
+    }
+}
+
+@Suppress("unused")
+@Composable
+private fun PercentBadge(pct: Int) {
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary
+    ) {
+        Text(
+            text = "$pct%",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+        )
     }
 }

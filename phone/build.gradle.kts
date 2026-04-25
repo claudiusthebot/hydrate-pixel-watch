@@ -13,8 +13,8 @@ android {
         applicationId = "rocks.claudiusthebot.watertracker"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
-        versionName = "0.7.0"
+        versionCode = 8
+        versionName = "0.8.0"
     }
 
     buildTypes {
@@ -49,11 +49,11 @@ dependencies {
     implementation(platform("androidx.compose:compose-bom:2025.04.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
-    // Material 3 Expressive explicit pin — unlocks ButtonGroup, new
-    // Typography.*Emphasized variants, MaterialShapes library, connected
-    // button rows, expressive FilledIconButton sizes, etc.
-    implementation("androidx.compose.material3:material3:1.4.0")
-    implementation("androidx.compose.material3:material3-window-size-class:1.4.0")
+    // Material 3 Expressive: pin to the 1.5.0 alpha line so we get
+    // LinearWavyProgressIndicator, the public ExperimentalMaterial3ExpressiveApi
+    // marker, ButtonGroup, etc. (1.4.0 stable hides them as `internal`.)
+    implementation("androidx.compose.material3:material3:1.5.0-alpha18")
+    implementation("androidx.compose.material3:material3-window-size-class:1.5.0-alpha18")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.animation:animation")

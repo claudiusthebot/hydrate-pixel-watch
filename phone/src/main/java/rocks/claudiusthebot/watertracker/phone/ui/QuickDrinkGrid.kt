@@ -3,6 +3,7 @@ package rocks.claudiusthebot.watertracker.phone.ui
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -13,17 +14,19 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.LocalCafe
 import androidx.compose.material.icons.rounded.LocalDrink
 import androidx.compose.material.icons.rounded.Opacity
 import androidx.compose.material.icons.rounded.WaterDrop
-import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.Card
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -33,22 +36,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.remember
 
 /**
- * Two-up grid of drink-size tiles. Replaces the v0.5 horizontal row that
- * was wrapping "250" into "25\n0" when the 4-button row got too narrow.
- *
- * Each tile is a Material 3 Expressive surface card with a sized drink
- * icon (cup/glass/bottle), the volume in big type, and "ml" beneath.
- * Flows to two rows on phone, collapses to one on large screens.
+ * Two-up grid of drink-size tiles. Each tile is a vertical layout:
+ * a contained icon chip on top, then the volume in big type, then "ml".
+ * Icons live inside a fixed-size circular chip so they never clip the
+ * tile's rounded corners.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -58,11 +57,11 @@ fun QuickDrinkGrid(
     onCustom: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    ElevatedCard(
+    Card(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge
     ) {
-        Column(Modifier.padding(18.dp)) {
+        Column(Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     Icons.Rounded.LocalDrink,
@@ -76,7 +75,7 @@ fun QuickDrinkGrid(
                     fontWeight = FontWeight.SemiBold
                 )
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
 
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
@@ -93,7 +92,7 @@ fun QuickDrinkGrid(
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
 
             FilledTonalButton(
                 onClick = onCustom,
@@ -112,7 +111,10 @@ fun QuickDrinkGrid(
     }
 }
 
-/** One drink-size tile — icon scaled by volume, huge number, ml label. */
+/**
+ * One drink tile: icon chip + value + "ml". Vertical layout keeps the
+ * icon fully inside the rounded surface, no matter the drink size.
+ */
 @Composable
 private fun DrinkTile(
     ml: Int,
@@ -123,16 +125,16 @@ private fun DrinkTile(
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.94f else 1f,
+        targetValue = if (pressed) 0.96f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "tileScale"
     )
 
-    val (icon, iconSize) = drinkIconFor(ml)
+    val icon = drinkIconFor(ml)
 
     Surface(
         modifier = modifier
-            .height(110.dp)
+            .height(124.dp)
             .scale(scale)
             .clickable(interactionSource = source, indication = null) {
                 tick()
@@ -140,46 +142,58 @@ private fun DrinkTile(
             },
         shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.primaryContainer,
-        tonalElevation = 2.dp
+        tonalElevation = 1.dp
     ) {
-        Box(Modifier.fillMaxWidth()) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.32f),
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.Start
+        ) {
+            // Icon chip — fixed 36dp circle, icon always 20dp inside it
+            Box(
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp)
-                    .size(iconSize)
-            )
-            Column(
-                Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                    ),
+                contentAlignment = Alignment.Center
             ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     text = "$ml",
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     softWrap = false,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
+                Spacer(Modifier.size(4.dp))
                 Text(
                     text = "ml",
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(bottom = 4.dp)
                 )
             }
         }
     }
 }
 
-/** Pick an icon + size based on volume — visually communicates the pour size. */
-private fun drinkIconFor(ml: Int): Pair<ImageVector, Dp> = when {
-    ml <= 150  -> Icons.Rounded.LocalCafe  to 28.dp   // espresso
-    ml <= 250  -> Icons.Rounded.LocalCafe  to 34.dp   // cup
-    ml <= 400  -> Icons.Rounded.LocalDrink to 42.dp   // glass
-    ml <= 600  -> Icons.Rounded.Opacity    to 48.dp   // bottle
-    else       -> Icons.Rounded.WaterDrop  to 56.dp   // big bottle
+/** Icon hint based on drink size — communicates pour without changing layout. */
+private fun drinkIconFor(ml: Int): ImageVector = when {
+    ml <= 200  -> Icons.Rounded.LocalCafe
+    ml <= 400  -> Icons.Rounded.LocalDrink
+    ml <= 600  -> Icons.Rounded.Opacity
+    else       -> Icons.Rounded.WaterDrop
 }
