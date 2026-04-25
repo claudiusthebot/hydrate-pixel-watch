@@ -16,8 +16,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,11 +53,7 @@ fun CustomAmountDialog(
     Box(
         Modifier
             .fillMaxSize()
-            .background(
-                Brush.radialGradient(
-                    listOf(Color(0xFF0B2034), Color(0xFF050A10))
-                )
-            )
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(
             Modifier
@@ -71,14 +65,14 @@ fun CustomAmountDialog(
                 "Custom amount",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF81D4FA)
+                color = MaterialTheme.colorScheme.primary
             )
             Spacer(Modifier.height(2.dp))
             Text(
                 "$selectedMl ml",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(Modifier.height(4.dp))
 
@@ -94,8 +88,9 @@ fun CustomAmountDialog(
                     fontSize = 16.sp,
                     fontWeight = if (i == pickerState.selectedOptionIndex) FontWeight.Bold
                                  else FontWeight.Medium,
-                    color = if (i == pickerState.selectedOptionIndex) Color.White
-                            else Color(0xFF6FB3E0)
+                    color = if (i == pickerState.selectedOptionIndex)
+                                MaterialTheme.colorScheme.onSurface
+                            else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 

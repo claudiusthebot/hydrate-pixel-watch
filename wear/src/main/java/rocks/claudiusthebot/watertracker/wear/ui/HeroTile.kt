@@ -85,13 +85,15 @@ fun HeroTile(
         label = "breathScale"
     )
 
+    val primary = MaterialTheme.colorScheme.primary
+    val primaryDim = MaterialTheme.colorScheme.primaryDim
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val surfaceContainer = MaterialTheme.colorScheme.surfaceContainer
+
     Box(
         modifier = modifier.size(150.dp).padding(3.dp).scale(breatheScale),
         contentAlignment = Alignment.Center
     ) {
-        val primary = MaterialTheme.colorScheme.primary
-        val primaryDim = MaterialTheme.colorScheme.primaryDim
-
         Canvas(Modifier.fillMaxSize()) {
             val stroke = 7.dp.toPx()
             val inset = stroke / 2f + 2.dp.toPx()
@@ -100,7 +102,7 @@ fun HeroTile(
 
             // rim track
             drawArc(
-                color = Color.White.copy(alpha = 0.08f),
+                color = onSurface.copy(alpha = 0.08f),
                 startAngle = -90f,
                 sweepAngle = 360f,
                 useCenter = false,
@@ -108,7 +110,7 @@ fun HeroTile(
                 size = Size(radius * 2, radius * 2),
                 style = Stroke(width = stroke, cap = StrokeCap.Round)
             )
-            // progress
+            // progress — themed sweep with a hint of the lighter water blue
             drawArc(
                 brush = Brush.sweepGradient(
                     listOf(
@@ -133,7 +135,7 @@ fun HeroTile(
                 addOval(Rect(center - Offset(innerR, innerR), Size(innerR * 2, innerR * 2)))
             }
             clipPath(disc) {
-                drawCircle(color = Color(0xFF07151F), radius = innerR, center = center)
+                drawCircle(color = surfaceContainer, radius = innerR, center = center)
 
                 val waterTop = center.y + innerR - innerR * 2 * pct.coerceAtMost(1f)
                 val amp = 3.dp.toPx()
@@ -191,12 +193,12 @@ fun HeroTile(
                 text = "$totalMl",
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = onSurface
             )
             Text(
                 text = "of $goalMl ml",
                 fontSize = 9.sp,
-                color = Color(0xFFB3E5FC)
+                color = onSurface.copy(alpha = 0.7f)
             )
         }
 
@@ -210,7 +212,7 @@ fun HeroTile(
                 text = "${(pct * 100).toInt()}%",
                 style = CurvedTextStyle(
                     fontSize = 10.sp,
-                    color = Color(0xFF81D4FA),
+                    color = primary,
                     fontWeight = FontWeight.SemiBold
                 )
             )

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,7 +25,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -56,11 +56,7 @@ fun WearRoot(store: WaterStore) {
         Box(
             Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.radialGradient(
-                        listOf(Color(0xFF0B2034), Color(0xFF050A10))
-                    )
-                )
+                .background(MaterialTheme.colorScheme.background)
         ) {
             AppScaffold(
                 timeText = { TimeText() }
@@ -84,7 +80,6 @@ private fun MainScreen(store: WaterStore) {
     var celebrating by remember { mutableStateOf(false) }
     var lastCelebrateDate by remember { mutableStateOf<String?>(null) }
 
-    // Fire celebration once when today first hits goal.
     LaunchedEffect(today.totalMl, today.goalMl, today.date) {
         val hit = today.goalMl > 0 && today.totalMl >= today.goalMl
         if (hit && lastCelebrateDate != today.date) {
@@ -93,7 +88,6 @@ private fun MainScreen(store: WaterStore) {
         }
     }
 
-    // Last-used volume for the EdgeButton primary action.
     val lastUsedMl = remember(quicks, today.entries) {
         today.entries.firstOrNull()?.volumeMl ?: quicks.getOrNull(1) ?: 250
     }
@@ -168,7 +162,7 @@ private fun MainScreen(store: WaterStore) {
                     Text(
                         "Today",
                         fontSize = 9.sp,
-                        color = Color(0xFF6FB3E0),
+                        color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -230,7 +224,7 @@ private fun CustomPill(onClick: () -> Unit) {
             .fillMaxWidth()
             .padding(horizontal = 2.dp)
             .background(
-                color = Color.White.copy(alpha = 0.08f),
+                color = MaterialTheme.colorScheme.surfaceContainer,
                 shape = RoundedCornerShape(18.dp)
             )
             .clickable { tick(); onClick() }
@@ -242,14 +236,14 @@ private fun CustomPill(onClick: () -> Unit) {
                 WaterIcons.Plus,
                 contentDescription = null,
                 modifier = Modifier.size(14.dp),
-                tint = Color(0xFF81D4FA)
+                tint = MaterialTheme.colorScheme.primary
             )
             Spacer(Modifier.size(6.dp))
             Text(
                 "Custom amount…",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color.White.copy(alpha = 0.9f)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f)
             )
         }
     }
@@ -257,15 +251,17 @@ private fun CustomPill(onClick: () -> Unit) {
 
 @Composable
 private fun SyncStatusChip(conn: WaterStore.ConnectionState) {
+    // Status colors stay semantic: amber for pending, green for synced,
+    // tonal-grey for waiting. Container/text track the theme.
     val (label, dotColor) = when {
         conn.pendingSync > 0 -> "${conn.pendingSync} pending" to Color(0xFFFFB74D)
         conn.phoneReachable  -> "Synced"                      to Color(0xFF81C784)
-        else                 -> "Waiting for phone"           to Color(0xFF90A4AE)
+        else                 -> "Waiting for phone"           to MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
     }
     Row(
         modifier = Modifier
             .background(
-                color = Color.White.copy(alpha = 0.08f),
+                color = MaterialTheme.colorScheme.surfaceContainer,
                 shape = RoundedCornerShape(12.dp)
             )
             .padding(horizontal = 8.dp, vertical = 3.dp),
@@ -274,13 +270,13 @@ private fun SyncStatusChip(conn: WaterStore.ConnectionState) {
         Box(
             modifier = Modifier
                 .size(6.dp)
-                .background(dotColor, shape = androidx.compose.foundation.shape.CircleShape)
+                .background(dotColor, shape = CircleShape)
         )
         Spacer(Modifier.size(5.dp))
         Text(
             label,
             fontSize = 9.sp,
-            color = Color.White.copy(alpha = 0.85f),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
             fontWeight = FontWeight.Medium
         )
     }
@@ -292,7 +288,7 @@ private fun EntryRow(entry: rocks.claudiusthebot.watertracker.shared.WaterEntry)
         Modifier
             .fillMaxWidth()
             .background(
-                color = Color.White.copy(alpha = 0.06f),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
                 shape = RoundedCornerShape(14.dp)
             )
             .padding(horizontal = 10.dp, vertical = 5.dp)
@@ -301,7 +297,7 @@ private fun EntryRow(entry: rocks.claudiusthebot.watertracker.shared.WaterEntry)
             Text(
                 "${entry.volumeMl} ml",
                 fontSize = 11.sp,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.weight(1f)
             )

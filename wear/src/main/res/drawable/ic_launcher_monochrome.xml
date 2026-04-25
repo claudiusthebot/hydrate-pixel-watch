@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Foreground for the adaptive launcher icon. Material Symbols WaterDrop
-  glyph with the inner reflection cutout via fillType=evenOdd, scaled
-  into the 108dp adaptive viewport so it sits inside the safe zone on
-  every launcher mask. Matches the phone icon for consistency.
+  Monochrome layer for themed icons. Same WaterDrop silhouette as the
+  foreground, system tints with the user's wallpaper palette.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
