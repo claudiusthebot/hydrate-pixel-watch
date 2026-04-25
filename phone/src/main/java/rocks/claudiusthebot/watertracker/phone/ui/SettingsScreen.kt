@@ -60,7 +60,8 @@ import rocks.claudiusthebot.watertracker.phone.WaterViewModel
 @Composable
 fun SettingsScreen(
     vm: WaterViewModel,
-    onOpenDiagnostics: () -> Unit
+    onOpenDiagnostics: () -> Unit,
+    onOpenAbout: () -> Unit
 ) {
     val settings by vm.settings.collectAsState()
     val reminders by vm.reminders.collectAsState()
@@ -269,7 +270,12 @@ fun SettingsScreen(
         }
 
         item {
-            AboutCard()
+            NavListRow(
+                icon = Icons.Rounded.Info,
+                title = "About",
+                subtitle = "Version, credits & source",
+                onClick = { lightTick(); onOpenAbout() }
+            )
         }
     }
 }
@@ -382,43 +388,6 @@ private fun NavListRow(
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
-    }
-}
-
-@Composable
-private fun AboutCard() {
-    Card(
-        shape = MaterialTheme.shapes.extraLarge,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        )
-    ) {
-        Row(
-            Modifier.padding(22.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            Icon(
-                Icons.Rounded.Info,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text(
-                    "About",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "Hydrate logs water intake to Health Connect on both phone and watch, so any device with Health Connect sees the same records.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-            }
         }
     }
 }

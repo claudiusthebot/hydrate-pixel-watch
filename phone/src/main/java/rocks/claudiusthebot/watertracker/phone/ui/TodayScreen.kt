@@ -1,5 +1,6 @@
 package rocks.claudiusthebot.watertracker.phone.ui
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -15,14 +16,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -30,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -88,19 +88,31 @@ fun TodayScreen(vm: WaterViewModel) {
                     totalMl = today.totalMl
                 )
             }
-            // Tween-based placement avoids the spring overshoot that was
-            // making the list "wobble" when entries got added/removed
-            // while the user was scrolling.
-            items(today.entries, key = { it.id }) { entry ->
-                EntryRow(
-                    entry = entry,
-                    onDelete = { vm.delete(entry) },
-                    modifier = Modifier.animateItem(
-                        fadeInSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-                        fadeOutSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
-                        placementSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing)
-                    )
-                )
+            // The whole entries section lives inside ONE LazyColumn item
+            // and animates its own height via animateContentSize. This
+            // avoids the per-item add/remove triggering a LazyColumn
+            // re-measure of the entire list — which was making the
+            // top-of-screen items (hero / quick-add / log header) jerk
+            // when deletes happened on a short or fully-scrolled list.
+            item(key = "entriesList") {
+                Column(
+                    modifier = Modifier.animateContentSize(
+                        animationSpec = tween(
+                            durationMillis = 260,
+                            easing = FastOutSlowInEasing
+                        )
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    today.entries.forEach { entry ->
+                        key(entry.id) {
+                            EntryRow(
+                                entry = entry,
+                                onDelete = { vm.delete(entry) }
+                            )
+                        }
+                    }
+                }
             }
         }
     }

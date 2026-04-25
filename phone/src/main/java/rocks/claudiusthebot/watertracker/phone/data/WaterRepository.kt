@@ -2,6 +2,7 @@ package rocks.claudiusthebot.watertracker.phone.data
 
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -30,6 +31,7 @@ class WaterRepository(
     private object Keys {
         val GOAL_ML = intPreferencesKey("goal_ml")
         val QUICK_ADDS = stringPreferencesKey("quick_adds")
+        val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
     }
 
     private val _today = MutableStateFlow(DaySummary(today(), 0, 2000))
@@ -66,6 +68,15 @@ class WaterRepository(
         context.settingsStore.edit {
             it[Keys.QUICK_ADDS] = quickAdds.joinToString(",")
         }
+    }
+
+    /** Whether the first-launch onboarding has been completed. */
+    val onboardingFlow: Flow<Boolean> = context.settingsStore.data.map {
+        it[Keys.ONBOARDING_COMPLETE] ?: false
+    }
+
+    suspend fun setOnboardingComplete() {
+        context.settingsStore.edit { it[Keys.ONBOARDING_COMPLETE] = true }
     }
 
     /** Write an intake to Health Connect and refresh today. */

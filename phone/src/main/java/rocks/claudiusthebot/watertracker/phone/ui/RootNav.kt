@@ -19,10 +19,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -79,6 +80,7 @@ private object Routes {
     const val HISTORY = "history"
     const val SETTINGS = "settings"
     const val DIAGNOSTICS = "diagnostics"
+    const val ABOUT = "about"
 }
 
 private data class TabDest(
@@ -141,7 +143,7 @@ fun RootNav(vm: WaterViewModel) {
         today.format(DateTimeFormatter.ofPattern("EEEE, d MMMM"))
     }
 
-    val isSubScreen = currentRoute == Routes.DIAGNOSTICS
+    val isSubScreen = currentRoute == Routes.DIAGNOSTICS || currentRoute == Routes.ABOUT
 
     val systemBarsBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     // Toolbar visible height (~56dp button + small slack) + top/bottom margins
@@ -163,6 +165,7 @@ fun RootNav(vm: WaterViewModel) {
                                 Routes.HISTORY -> "History"
                                 Routes.SETTINGS -> "Settings"
                                 Routes.DIAGNOSTICS -> "Diagnostics"
+                                Routes.ABOUT -> "About"
                                 else -> "Hydrate"
                             },
                             style = MaterialTheme.typography.titleLarge,
@@ -266,12 +269,16 @@ fun RootNav(vm: WaterViewModel) {
                 ScreenSurface {
                     SettingsScreen(
                         vm = vm,
-                        onOpenDiagnostics = { nav.navigate(Routes.DIAGNOSTICS) }
+                        onOpenDiagnostics = { nav.navigate(Routes.DIAGNOSTICS) },
+                        onOpenAbout = { nav.navigate(Routes.ABOUT) }
                     )
                 }
             }
             composable(Routes.DIAGNOSTICS) {
                 ScreenSurface { DiagnosticsScreen(vm) }
+            }
+            composable(Routes.ABOUT) {
+                ScreenSurface { AboutScreen() }
             }
         }
     }
@@ -281,8 +288,22 @@ fun RootNav(vm: WaterViewModel) {
     Box(
         modifier = Modifier
             .align(Alignment.BottomCenter)
-            .fillMaxWidth()
-            .padding(bottom = systemBarsBottom + 12.dp),
+            .padding(bottom = systemBarsBottom + 12.dp)
+            // Block any tap inside this Box (the floating bar's bounding
+            // rect, including the rounded-corner empty regions) from
+            // reaching content underneath. Runs at Final pass so the
+            // ToggleButtons inside still receive their taps first; we
+            // only consume what their hit-test missed.
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(pass = PointerEventPass.Final)
+                        event.changes.forEach {
+                            if (!it.isConsumed) it.consume()
+                        }
+                    }
+                }
+            },
         contentAlignment = Alignment.Center
     ) {
         val tabHaptic = rememberConfirmTick()
@@ -297,7 +318,8 @@ fun RootNav(vm: WaterViewModel) {
             TABS.forEach { dest ->
                 val selected = currentRoute == dest.route ||
                     (dest.route == Routes.SETTINGS &&
-                        currentRoute == Routes.DIAGNOSTICS)
+                        (currentRoute == Routes.DIAGNOSTICS ||
+                            currentRoute == Routes.ABOUT))
                 ToggleButton(
                     checked = selected,
                     onCheckedChange = {
@@ -375,6 +397,7 @@ private fun routeOrder(route: String?): Int = when (route) {
     Routes.HISTORY -> 1
     Routes.SETTINGS -> 2
     Routes.DIAGNOSTICS -> 3   // sub-screen, sits "to the right" of Settings
+    Routes.ABOUT -> 3         // sibling sub-screen of Settings
     else -> 0
 }
 

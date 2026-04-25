@@ -44,6 +44,21 @@ class WaterViewModel(app: Application) : AndroidViewModel(app) {
         ReminderPrefs.Snapshot(true, 120, 250, 22, 7)
     )
 
+    /**
+     * `null` until DataStore loads, then `true`/`false`. UI keeps a splash
+     * placeholder visible while it's null so we don't briefly flash the
+     * onboarding to returning users.
+     */
+    val onboardingComplete: StateFlow<Boolean?> = repo.onboardingFlow.stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        null
+    )
+
+    fun completeOnboarding() {
+        viewModelScope.launch { repo.setOnboardingComplete() }
+    }
+
     // Tracks goal-reached so we only celebrate once per day.
     private var celebratedForDate: String? = null
 

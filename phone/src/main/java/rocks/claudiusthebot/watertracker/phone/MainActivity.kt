@@ -14,7 +14,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
-import rocks.claudiusthebot.watertracker.phone.ui.RootNav
+import rocks.claudiusthebot.watertracker.phone.ui.AppRoot
 import rocks.claudiusthebot.watertracker.phone.ui.theme.WaterTrackerTheme
 
 class MainActivity : ComponentActivity() {
@@ -32,7 +32,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             WaterTrackerTheme {
-                RootNav(vm = vm)
+                AppRoot(vm = vm)
             }
         }
 
