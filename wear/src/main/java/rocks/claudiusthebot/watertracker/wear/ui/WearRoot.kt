@@ -29,30 +29,40 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
+import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
 import androidx.wear.compose.foundation.lazy.items
-import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
+import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.foundation.rotary.RotaryScrollableDefaults
 import androidx.wear.compose.foundation.rotary.rotaryScrollable
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.EdgeButton
 import androidx.wear.compose.material3.EdgeButtonSize
 import androidx.wear.compose.material3.Icon
+import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
+import androidx.wear.compose.material3.MotionScheme
 import androidx.wear.compose.material3.ScreenScaffold
+import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.TimeText
+import androidx.wear.compose.material3.lazy.rememberTransformationSpec
+import androidx.wear.compose.material3.lazy.transformedHeight
 import kotlinx.coroutines.launch
 import rocks.claudiusthebot.watertracker.wear.WaterStore
 
 /**
- * Root entry point. Wraps the screen in `AppScaffold` so TimeText is owned
- * at the app level (single subscription) and ScreenScaffold owns the per-
- * screen chrome (PositionIndicator, EdgeButton).
+ * Root entry point. The Wear OS 6 / Material 3 Expressive recipe:
+ *  - `MotionScheme.expressive()` so M3 components use the bouncy 1.5
+ *    spring set across the app.
+ *  - `AppScaffold` owns `TimeText` (single subscription).
+ *  - `ScreenScaffold` owns the per-screen edge button / position
+ *    indicator.
+ *  - `TransformingLazyColumn` + `rememberTransformationSpec` give items
+ *    the focal-edge scale/fade transformation as they leave the lens.
  */
 @Composable
 fun WearRoot(store: WaterStore) {
-    MaterialTheme {
+    MaterialTheme(motionScheme = MotionScheme.expressive()) {
         Box(
             Modifier
                 .fillMaxSize()
@@ -92,7 +102,8 @@ private fun MainScreen(store: WaterStore) {
         today.entries.firstOrNull()?.volumeMl ?: quicks.getOrNull(1) ?: 250
     }
 
-    val listState = rememberScalingLazyListState()
+    val listState = rememberTransformingLazyColumnState()
+    val transformationSpec = rememberTransformationSpec()
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
@@ -115,7 +126,7 @@ private fun MainScreen(store: WaterStore) {
             )
         }
     ) { contentPadding ->
-        ScalingLazyColumn(
+        TransformingLazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
@@ -130,44 +141,83 @@ private fun MainScreen(store: WaterStore) {
             item {
                 HeroTile(totalMl = today.totalMl, goalMl = today.goalMl)
             }
-            item { SyncStatusChip(conn) }
+            item {
+                Box(
+                    modifier = Modifier
+                        .transformedHeight(this, transformationSpec)
+                ) {
+                    SyncStatusChip(conn)
+                }
+            }
 
             items(quicks.take(3)) { ml ->
-                DrinkChip(
-                    ml = ml,
-                    containerColor = colorForDrink(ml),
-                    contentColor = contentForDrink(ml),
-                    onPick = { scope.launch { store.addIntake(it) } },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this@items, transformationSpec)
+                ) {
+                    DrinkChip(
+                        ml = ml,
+                        containerColor = colorForDrink(ml),
+                        contentColor = contentForDrink(ml),
+                        onPick = { scope.launch { store.addIntake(it) } },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    )
+                }
             }
 
             item {
-                CustomPill(onClick = { customSheetOpen = true })
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, transformationSpec)
+                ) {
+                    CustomPill(onClick = { customSheetOpen = true })
+                }
             }
 
             item {
-                GoalAdjuster(
-                    goalMl = today.goalMl,
-                    onStep = { delta ->
-                        scope.launch {
-                            store.setGoal((today.goalMl + delta).coerceIn(500, 6000))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, transformationSpec)
+                ) {
+                    GoalAdjuster(
+                        goalMl = today.goalMl,
+                        onStep = { delta ->
+                            scope.launch {
+                                store.setGoal((today.goalMl + delta).coerceIn(500, 6000))
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
 
             if (today.entries.isNotEmpty()) {
                 item {
-                    Text(
-                        "Today",
-                        fontSize = 9.sp,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    ListHeader(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .transformedHeight(this, transformationSpec),
+                        transformation = SurfaceTransformation(transformationSpec)
+                    ) {
+                        Text(
+                            "Today",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
                 items(today.entries.take(5)) { entry ->
-                    EntryRow(entry)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .transformedHeight(this@items, transformationSpec)
+                    ) {
+                        EntryRow(entry)
+                    }
                 }
             }
         }
@@ -251,8 +301,6 @@ private fun CustomPill(onClick: () -> Unit) {
 
 @Composable
 private fun SyncStatusChip(conn: WaterStore.ConnectionState) {
-    // Status colors stay semantic: amber for pending, green for synced,
-    // tonal-grey for waiting. Container/text track the theme.
     val (label, dotColor) = when {
         conn.pendingSync > 0 -> "${conn.pendingSync} pending" to Color(0xFFFFB74D)
         conn.phoneReachable  -> "Synced"                      to Color(0xFF81C784)
@@ -309,7 +357,6 @@ private fun EntryRow(entry: rocks.claudiusthebot.watertracker.shared.WaterEntry)
     }
 }
 
-/** Rotate drink chip container colors through primary / secondary / tertiary. */
 @Composable
 private fun colorForDrink(ml: Int): Color = when {
     ml <= 150 -> MaterialTheme.colorScheme.tertiaryContainer

@@ -52,5 +52,24 @@
                 <data android:scheme="wear" android:host="*" android:pathPrefix="/water" />
             </intent-filter>
         </service>
+
+        <!--
+            Hydrate Tile — appears in the Pixel Watch tile carousel.
+            Shows today's progress + a quick-add edge button.
+        -->
+        <service
+            android:name=".tile.HydrationTileService"
+            android:description="@string/tile_description"
+            android:exported="true"
+            android:label="@string/tile_label"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+            <meta-data
+                android:name="androidx.wear.tiles.PREVIEW"
+                android:resource="@drawable/tile_preview"
+                tools:ignore="SquareAndRoundTilePreviews" />
+        </service>
     </application>
 </manifest>

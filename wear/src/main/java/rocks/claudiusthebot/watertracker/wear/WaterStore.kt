@@ -21,6 +21,8 @@ import rocks.claudiusthebot.watertracker.shared.DaySummary
 import rocks.claudiusthebot.watertracker.shared.WaterEntry
 import rocks.claudiusthebot.watertracker.wear.ongoing.OngoingHydration
 import rocks.claudiusthebot.watertracker.wear.sync.PhoneSync
+import rocks.claudiusthebot.watertracker.wear.tile.HydrationTileService
+import androidx.wear.tiles.TileService
 import java.time.LocalDate
 import java.util.UUID
 
@@ -96,6 +98,7 @@ class WaterStore(
             phoneReachable = (p[Keys.LAST_SEEN_PHONE] ?: 0L) > 0L
         )
         OngoingHydration.update(context, _today.value.totalMl, _today.value.goalMl)
+        nudgeTile()
     }
 
     private suspend fun saveCache() {
@@ -120,6 +123,7 @@ class WaterStore(
         context.wearDs.edit { it[Keys.GOAL] = ml }
         _today.value = _today.value.copy(goalMl = ml)
         OngoingHydration.update(context, _today.value.totalMl, _today.value.goalMl)
+        nudgeTile()
         saveCache()
     }
 
@@ -152,6 +156,7 @@ class WaterStore(
         )
         saveCache()
         OngoingHydration.update(context, _today.value.totalMl, _today.value.goalMl)
+        nudgeTile()
 
         // Push to phone
         val ok = sync.pushIntakeAdd(entry)
@@ -183,6 +188,7 @@ class WaterStore(
             it[Keys.LAST_SEEN_PHONE] = System.currentTimeMillis()
         }
         OngoingHydration.update(context, _today.value.totalMl, _today.value.goalMl)
+        nudgeTile()
     }
 
     /**
@@ -203,6 +209,7 @@ class WaterStore(
         )
         saveCache()
         OngoingHydration.update(context, _today.value.totalMl, _today.value.goalMl)
+        nudgeTile()
     }
 
     private suspend fun saveGoalIfDiff(goalMl: Int) {
@@ -218,4 +225,17 @@ class WaterStore(
     fun refreshAsync() { scope.launch { loadCache() } }
 
     suspend fun refresh() = loadCache()
+
+    /**
+     * Ask the system to re-render the Hydrate tile. Cheap — the tile
+     * service re-runs its layout build which reads from this store.
+     * No-op on hosts that don't support tiles. Wrapped in try/catch
+     * because some emulators throw NPE in the updater plumbing.
+     */
+    private fun nudgeTile() {
+        try {
+            TileService.getUpdater(context)
+                .requestUpdate(HydrationTileService::class.java)
+        } catch (_: Throwable) { /* ignore */ }
+    }
 }

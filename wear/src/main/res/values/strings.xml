@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Hydrate</string>
+    <string name="tile_label">Hydrate</string>
+    <string name="tile_description">See today\'s water intake and quick-log a drink.</string>
+    <string name="tile_add_intake">+ Drink</string>
+    <string name="tile_today_label">TODAY</string>
 </resources>

@@ -48,12 +48,11 @@ dependencies {
     // No material-icons dep on wear — drink icons live in WaterIcons.kt so
     // we don't pull the 40+ MB material-icons-extended catalogue.
 
-    // Wear Compose Material 3 (Material 3 Expressive) — latest stable,
-    // ships EdgeButton + ScreenScaffold + TimeText + PositionIndicator +
-    // Vignette + rotary-scrollable support.
-    implementation("androidx.wear.compose:compose-material3:1.5.0")
-    implementation("androidx.wear.compose:compose-foundation:1.5.0")
-    implementation("androidx.wear.compose:compose-navigation:1.5.0")
+    // Wear Compose Material 3 (Material 3 Expressive). 1.5.6 brings
+    // MotionScheme.standard(), TransformingLazyColumn, AppCard, etc.
+    implementation("androidx.wear.compose:compose-material3:1.5.6")
+    implementation("androidx.wear.compose:compose-foundation:1.5.6")
+    implementation("androidx.wear.compose:compose-navigation:1.5.6")
     implementation("androidx.wear:wear:1.3.0")
     implementation("androidx.wear:wear-tooling-preview:1.0.0")
 
@@ -64,6 +63,8 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
+    // Bridges kotlinx coroutines → ListenableFuture for the TileService API.
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.9.0")
 
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
@@ -72,6 +73,15 @@ dependencies {
 
     // Ongoing activity on watch face
     implementation("androidx.wear:wear-ongoing:1.0.0")
+
+    // Wear OS Tile (swipe-able panel) — ProtoLayout 1.3.0 unlocks the
+    // Material 3 Expressive `materialScope` / `primaryLayout` idiom that
+    // mirrors the phone app's M3-Expressive design.
+    implementation("androidx.wear.tiles:tiles:1.4.1")
+    implementation("androidx.wear.protolayout:protolayout:1.3.0")
+    implementation("androidx.wear.protolayout:protolayout-material3:1.3.0")
+    implementation("androidx.wear.protolayout:protolayout-expression:1.3.0")
+    implementation("com.google.guava:guava:32.1.3-android")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
