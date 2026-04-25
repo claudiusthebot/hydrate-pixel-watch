@@ -573,7 +573,7 @@ private fun ChartCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        "${formatMlCompact(maxValue)} on ${peakLabel(sorted, maxValue)}",
+                        "${formatMlCompact(maxValue)} ${peakPhrase(sorted, maxValue)}",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -862,9 +862,21 @@ private fun longDay(dateIso: String): String {
 private fun formatMlCompact(ml: Int): String =
     if (ml >= 1000) String.format("%.1fL", ml / 1000f) else "${ml}ml"
 
-private fun peakLabel(sorted: List<DaySummary>, peak: Int): String {
+/**
+ * Renders the peak-day phrase with the right preposition for the date class:
+ *   today      → "today"      (no "on" — reads naturally with the preceding ml value)
+ *   yesterday  → "yesterday"
+ *   any other  → "on Sat 25 Apr"
+ */
+private fun peakPhrase(sorted: List<DaySummary>, peak: Int): String {
     val match = sorted.firstOrNull { it.totalMl == peak } ?: return "—"
-    return longDay(match.date)
+    val d = LocalDate.parse(match.date)
+    val today = LocalDate.now()
+    return when (d) {
+        today -> "today"
+        today.minusDays(1) -> "yesterday"
+        else -> "on ${d.format(DateTimeFormatter.ofPattern("EEE d MMM"))}"
+    }
 }
 
 @Suppress("unused")

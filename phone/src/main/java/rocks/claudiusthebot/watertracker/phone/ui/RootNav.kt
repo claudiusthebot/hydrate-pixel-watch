@@ -54,9 +54,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -111,9 +113,27 @@ val LocalFloatingNavInset = compositionLocalOf { 0.dp }
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun RootNav(vm: WaterViewModel) {
+    val context = LocalContext.current
     val nav = rememberNavController()
     val backEntry by nav.currentBackStackEntryAsState()
     val currentRoute = backEntry?.destination?.route
+
+    // Resume on the last peer tab (Today / History / Settings).  Sub-screens
+    // like Diagnostics are intentionally not restored — re-entry always lands
+    // on a top-level destination.  Read once on first composition.
+    val initialRoute = remember {
+        val saved = LastTabPrefs.read(context, default = Routes.TODAY)
+        if (saved in PEER_TAB_ROUTES) saved else Routes.TODAY
+    }
+
+    // Persist whenever the user lands on a peer tab.  Sub-screens don't
+    // overwrite the saved route, so closing the app from Diagnostics still
+    // resumes back into Settings (its parent in the tab graph).
+    LaunchedEffect(currentRoute) {
+        if (currentRoute in PEER_TAB_ROUTES) {
+            LastTabPrefs.write(context, currentRoute!!)
+        }
+    }
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val today = remember { LocalDate.now() }
@@ -233,7 +253,7 @@ fun RootNav(vm: WaterViewModel) {
 
         NavHost(
             navController = nav,
-            startDestination = Routes.TODAY,
+            startDestination = initialRoute,
             modifier = Modifier.fillMaxSize().padding(top = inner.calculateTopPadding()),
             enterTransition = enter,
             exitTransition = exit,
@@ -265,6 +285,7 @@ fun RootNav(vm: WaterViewModel) {
             .padding(bottom = systemBarsBottom + 12.dp),
         contentAlignment = Alignment.Center
     ) {
+        val tabHaptic = rememberConfirmTick()
         HorizontalFloatingToolbar(
             expanded = true,
             colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(
@@ -281,6 +302,7 @@ fun RootNav(vm: WaterViewModel) {
                     checked = selected,
                     onCheckedChange = {
                         if (!selected) {
+                            tabHaptic()
                             nav.navigate(dest.route) {
                                 popUpTo(nav.graph.findStartDestination().id) {
                                     saveState = true
