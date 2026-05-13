@@ -19,7 +19,7 @@ sees the same data.
 ## Target hardware
 
 - **Phone**: Android 8+ (min SDK 26), Pixel family tested
-- **Watch**: Wear OS 4+ (min SDK 30), Pixel Watch 3 / Wear OS 5 / Wear OS 6
+- **Watch**: Wear OS 5+ (min SDK 34), Pixel Watch 3 / Wear OS 5 / Wear OS 6
   target
 - Requires **Health Connect** installed on both (built-in on Wear OS 5+ and
   Android 14+).
@@ -147,8 +147,6 @@ wear/
 - Watch app reuses the `com.google.android.apps.healthdata` query — if the
   watch build of Health Connect is older than expected the app falls back to
   a "not available" screen with a Play Store deep link.
-- No streak / weekly average headline. The History screen has the raw data;
-  a "you hit your goal 5 of 7 days" line would be a nice add.
 
 ## License
 
