@@ -68,6 +68,26 @@ Listeners are registered via `WearableListenerService` on each side. No
 permanent foreground service needed — the system delivers messages when they
 arrive.
 
+## Phone widget
+
+A resizable Glance widget mirrors today's hydration on the home screen.
+
+- Header row shows the app name and current goal percentage.
+- Body shows `total / goal` in millilitres plus a thin progress bar.
+- Pill button at the bottom-right logs a one-tap drink using the user's
+  first quick-add volume (default 250 ml). Adds go through the same
+  `WaterRepository.addIntake` path as the in-app + reminder quick-adds, so
+  the entry is mirrored to Health Connect and pushed to the watch.
+
+The widget is composed entirely with Glance (no RemoteViews bridge) and
+reads its state from `WaterRepository.today` at composition time.
+`WaterApp` collects the same `StateFlow` and calls
+`HydrationWidget().updateAll(...)` whenever the total / goal / primary
+quick-add changes, so the home-screen tile is always in step with what the
+app, the watch, and the notification shade have written.
+
+Default size is 4×2 cells; the widget resizes on both axes.
+
 ## Reminders
 
 The phone app schedules a periodic `WorkManager` job (`ReminderWorker`) that
@@ -109,6 +129,9 @@ phone/
   notif/       — HydrateNotifications, ReminderPrefs, ReminderWorker,
                  LogActionReceiver. WorkManager-driven reminders + the
                  quick-log broadcast handler.
+  widget/      — HydrationWidget (Glance), HydrationWidgetReceiver,
+                 HydrationLogAction. Home-screen widget mirroring today's
+                 progress with a one-tap quick-add.
   WaterViewModel, MainActivity, WaterApp.
 wear/
   ui/          — Compose UI with ScalingLazyColumn, hero tile, drink chips,
@@ -142,8 +165,6 @@ wear/
 
 - Weekly bar chart sums from HC rather than caching per-day — fine at the
   7-day window, would need a daily-summary table to chunk for monthly views.
-- No phone homescreen widget. The Wear tile is the equivalent affordance on
-  the watch; a Glance widget on the phone would mirror it.
 - Watch app reuses the `com.google.android.apps.healthdata` query — if the
   watch build of Health Connect is older than expected the app falls back to
   a "not available" screen with a Play Store deep link.

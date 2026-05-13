@@ -13,8 +13,8 @@ android {
         applicationId = "rocks.claudiusthebot.watertracker"
         minSdk = 26
         targetSdk = 36
-        versionCode = 9
-        versionName = "0.9.0"
+        versionCode = 10
+        versionName = "0.10.0"
     }
 
     buildTypes {
@@ -77,6 +77,11 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.work:work-runtime-ktx:2.10.0")
+
+    // Glance AppWidget — homescreen hydration widget.
+    // 1.1.1 is the latest stable line that pairs with Compose runtime 1.7.x.
+    implementation("androidx.glance:glance-appwidget:1.1.1")
+    implementation("androidx.glance:glance-material3:1.1.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 

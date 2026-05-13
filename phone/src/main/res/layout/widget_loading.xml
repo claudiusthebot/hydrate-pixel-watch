@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Shown briefly between widget host-add and the first Glance composition.
+    Glance replaces the contents of this view tree on its first frame, so
+    this only ever flashes for a single frame on slow hosts.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground">
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="@string/app_name"
+        android:textColor="?android:attr/textColorPrimary"
+        android:textStyle="bold" />
+</FrameLayout>

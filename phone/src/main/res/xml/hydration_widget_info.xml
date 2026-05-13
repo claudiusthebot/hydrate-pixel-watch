@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Hydrate home-screen widget descriptor.
+
+    minWidth / minHeight target a 4×2 cell footprint at the Android baseline
+    of 70 dp/cell (4×70 − 30 = 250 dp, 2×70 − 30 = 110 dp). The widget
+    resizes both axes (resizeMode="horizontal|vertical") and the Glance
+    layout fills whatever bounds the host negotiates.
+
+    targetCellWidth / targetCellHeight are the Android 12+ hints that get
+    used instead of the minWidth maths above when the launcher supports
+    them — Pixel Launcher does.
+
+    previewLayout points at an XML preview rendered in the widget picker so
+    the user sees the actual visual rather than a generic blue square.
+
+    `updatePeriodMillis="0"` — we drive updates ourselves from WaterApp's
+    Flow collector. Setting a non-zero period would force WAKE_UP every
+    30 min minimum and only adds battery cost for no extra freshness.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:initialLayout="@layout/widget_loading"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_description"
+    android:previewLayout="@layout/widget_preview"
+    tools:targetApi="31"
+    tools:ignore="UnusedAttribute" />
