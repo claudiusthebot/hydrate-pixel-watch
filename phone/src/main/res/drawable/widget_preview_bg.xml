@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Rounded surface background used by the preview layout. Runtime widget
+    uses GlanceTheme.colors.surface directly; this resource only exists for
+    the picker's static preview.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="?android:attr/colorBackground" />
+    <corners android:radius="20dp" />
+</shape>

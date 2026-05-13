@@ -73,5 +73,19 @@
         <receiver
             android:name=".notif.LogActionReceiver"
             android:exported="false" />
+
+        <!-- Home-screen Glance widget. The receiver is the GlanceAppWidgetReceiver
+             subclass; it instantiates HydrationWidget on first composition. -->
+        <receiver
+            android:name=".widget.HydrationWidgetReceiver"
+            android:exported="false"
+            android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/hydration_widget_info" />
+        </receiver>
     </application>
 </manifest>
